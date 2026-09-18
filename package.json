@@ -1,0 +1,11 @@
+{
+  "name": "snowpine",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Snowpine - an online fulfillment shop bringing European/Nordic products to India.",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "migrate": "cd backend && npm run migrate"
+  }
+}
