@@ -1,0 +1,97 @@
+// Pluggable like razorpay.js: unset SMTP_* -> emails print to the server
+// log instead of sending (fine for local dev, nothing to configure). Set
+// them -> real email goes out via nodemailer.
+require("dotenv").config();
+
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = process.env.SMTP_PORT;
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const FROM_ADDRESS = process.env.SMTP_FROM || "orders@snowpine.example";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+function isConfigured() {
+  return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+}
+
+let transporter = null;
+function getTransporter() {
+  if (!isConfigured()) return null;
+  if (!transporter) {
+    const nodemailer = require("nodemailer");
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT),
+      secure: Number(SMTP_PORT) === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+  }
+  return transporter;
+}
+
+async function sendMail({ to, subject, text }) {
+  const t = getTransporter();
+  if (!t) {
+    console.log(`[email:dev] To: ${to}\nSubject: ${subject}\n\n${text}`);
+    return;
+  }
+  await t.sendMail({ from: FROM_ADDRESS, to, subject, text });
+}
+
+const inr = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function renderOrderConfirmation(order) {
+  const lines = order.items.map((i) => {
+    const lineTotal = Number(i.unit_price_inr) * i.quantity;
+    return `  ${i.name} x${i.quantity} - ${inr(lineTotal)} (incl. GST ${(Number(i.gst_rate) * 100).toFixed(0)}%: ${inr(i.gst_amount)})`;
+  });
+  const totalGst = order.items.reduce((sum, i) => sum + i.gst_amount, 0);
+  const totalTaxable = order.items.reduce((sum, i) => sum + i.taxable_value, 0);
+
+  // access_token, not the (sequential, guessable) order id, is what
+  // authorizes viewing the order at this link - see getOrderForCustomer.
+  const trackingUrl = `${FRONTEND_URL}/order/${order.id}?token=${order.access_token}`;
+  const text = [
+    `Hi ${order.customer_name},`,
+    "",
+    `Your Snowpine order #${order.id} is confirmed.`,
+    "",
+    ...lines,
+    "",
+    `Taxable value: ${inr(totalTaxable)}`,
+    `GST: ${inr(totalGst)}`,
+    `Total (incl. GST): ${inr(order.total_inr)}`,
+    "",
+    `Shipping to: ${order.shipping_address}`,
+    "",
+    `Track your order: ${trackingUrl}`,
+    "",
+    "This is your order confirmation and tax invoice for GST purposes.",
+    "We'll email you again once it ships.",
+  ].join("\n");
+  return { subject: `Snowpine order #${order.id} confirmed`, text };
+}
+
+async function sendOrderConfirmation(order) {
+  const { subject, text } = renderOrderConfirmation(order);
+  await sendMail({ to: order.customer_email, subject, text });
+}
+
+// The confirmation email promises "we'll email you again once it ships" -
+// this is what actually keeps that promise, triggered from
+// updateOrderStatus when an admin marks an order shipped.
+async function sendShippedNotification(order) {
+  const trackingUrl = `${FRONTEND_URL}/order/${order.id}?token=${order.access_token}`;
+  const text = [
+    `Hi ${order.customer_name},`,
+    "",
+    `Your Snowpine order #${order.id} has shipped.`,
+    "",
+    `Shipping to: ${order.shipping_address}`,
+    "",
+    `Track your order: ${trackingUrl}`,
+  ].join("\n");
+  await sendMail({ to: order.customer_email, subject: `Snowpine order #${order.id} has shipped`, text });
+}
+
+module.exports = { isConfigured, sendMail, sendOrderConfirmation, sendShippedNotification };

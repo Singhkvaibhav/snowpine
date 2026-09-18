@@ -1,0 +1,129 @@
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { fetchOrder, fetchConfig, verifyPayment } from "../api/client";
+
+const STATUS_LABEL = {
+  pending: "Pending payment",
+  paid: "Paid",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+const inr = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function OrderConfirmation() {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const [order, setOrder] = useState(null);
+  const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
+
+  function reload() {
+    fetchOrder(id, token).then(setOrder).catch((e) => setError(e.message));
+  }
+
+  useEffect(reload, [id, token]);
+
+  if (error) return <p className="error-text">{error}</p>;
+  if (!order) return <p className="muted">Loading...</p>;
+
+  const totalTaxable = order.items.reduce((sum, i) => sum + i.taxable_value, 0);
+  const totalGst = order.items.reduce((sum, i) => sum + i.gst_amount, 0);
+
+  // Reopens payment on the SAME Razorpay order rather than creating a new
+  // Snowpine order - if a customer's widget got dismissed or their browser
+  // hiccuped, starting a fresh checkout instead would reserve the same
+  // stock a second time until one of the two reservations expires.
+  async function handleCompletePayment() {
+    setRetrying(true);
+    setError(null);
+    try {
+      const { razorpayKeyId } = await fetchConfig();
+      if (!razorpayKeyId || !window.Razorpay) {
+        setError("Payment is not available right now - please try again later or contact support.");
+        setRetrying(false);
+        return;
+      }
+      const rzp = new window.Razorpay({
+        key: razorpayKeyId,
+        order_id: order.razorpay_order_id,
+        amount: Math.round(Number(order.total_inr) * 100),
+        currency: "INR",
+        name: "Snowpine",
+        description: `Order #${order.id}`,
+        prefill: { name: order.customer_name, email: order.customer_email, contact: order.customer_phone },
+        handler: async (response) => {
+          try {
+            await verifyPayment(order.id, response);
+            reload();
+          } catch (e) {
+            setError(`Payment succeeded but could not be verified: ${e.message}. Contact support with order #${order.id}.`);
+          }
+        },
+        modal: { ondismiss: () => setRetrying(false) },
+      });
+      rzp.on("payment.failed", (response) => {
+        setError(response.error?.description || "Payment failed. Please try again.");
+        setRetrying(false);
+      });
+      rzp.open();
+    } catch (e) {
+      setError(e.message);
+      setRetrying(false);
+    }
+  }
+
+  return (
+    <div>
+      <h2>Order #{order.id}</h2>
+      <p className="muted">Status: {STATUS_LABEL[order.status] || order.status}</p>
+
+      {order.status === "pending" && order.razorpay_order_id && (
+        <div style={{ marginBottom: "1rem" }}>
+          <p className="muted">This order hasn't been paid yet.</p>
+          <button className="btn" onClick={handleCompletePayment} disabled={retrying}>
+            {retrying ? "Opening payment..." : "Complete payment"}
+          </button>
+        </div>
+      )}
+
+      {error && <p className="error-text">{error}</p>}
+
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Taxable value</th>
+              <th>GST</th>
+              <th>Line total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.items.map((i) => (
+              <tr key={i.product_id}>
+                <td>{i.name}</td>
+                <td>{i.quantity}</td>
+                <td>{inr(i.taxable_value)}</td>
+                <td>{inr(i.gst_amount)} ({(Number(i.gst_rate) * 100).toFixed(0)}%)</td>
+                <td>{inr(Number(i.unit_price_inr) * i.quantity)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
+        <p className="muted">Taxable value: {inr(totalTaxable)}</p>
+        <p className="muted">GST: {inr(totalGst)}</p>
+        <h3>Total (incl. GST): {inr(order.total_inr)}</h3>
+      </div>
+
+      <p className="muted">This page is your order confirmation and tax invoice for GST purposes.</p>
+      <Link to="/">Continue shopping</Link>
+    </div>
+  );
+}
