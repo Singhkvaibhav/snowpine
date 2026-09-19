@@ -4,10 +4,14 @@ import { fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
 
+const LOW_STOCK_HINT_THRESHOLD = 5;
+
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [country, setCountry] = useState("All");
+  const [sort, setSort] = useState("default");
   const [search, setSearch] = useState("");
   const { addItem } = useCart();
 
@@ -20,16 +24,28 @@ export default function Home() {
     return ["All", ...Array.from(set).sort()];
   }, [products]);
 
-  const visible = products.filter((p) => {
-    const inCategory = activeCategory === "All" || p.category === activeCategory;
-    const query = search.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      p.name.toLowerCase().includes(query) ||
-      p.description.toLowerCase().includes(query) ||
-      p.origin_country.toLowerCase().includes(query);
-    return inCategory && matchesSearch;
-  });
+  const countries = useMemo(() => {
+    const set = new Set(products.map((p) => p.origin_country));
+    return ["All", ...Array.from(set).sort()];
+  }, [products]);
+
+  const visible = products
+    .filter((p) => {
+      const inCategory = activeCategory === "All" || p.category === activeCategory;
+      const inCountry = country === "All" || p.origin_country === country;
+      const query = search.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        p.name.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query) ||
+        p.origin_country.toLowerCase().includes(query);
+      return inCategory && inCountry && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sort === "price-asc") return Number(a.price_inr) - Number(b.price_inr);
+      if (sort === "price-desc") return Number(b.price_inr) - Number(a.price_inr);
+      return 0; // "default" - keep the server's order
+    });
 
   return (
     <div>
@@ -39,7 +55,8 @@ export default function Home() {
         <div className="hero-badges">
           <span className="hero-badge">Curated from trusted Nordic brands</span>
           <span className="hero-badge">Duty and GST included in every price</span>
-          <span className="hero-badge">Ships across India</span>
+          <span className="hero-badge">Ships across India, 5-10 business days</span>
+          <span className="hero-badge"><Link to="/shipping-returns">Shipping &amp; returns policy</Link></span>
         </div>
       </section>
 
@@ -70,6 +87,25 @@ export default function Home() {
             </button>
           ))}
         </nav>
+
+        <div className="filter-row">
+          <label className="filter-select">
+            Origin
+            <select value={country} onChange={(e) => setCountry(e.target.value)}>
+              {countries.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-select">
+            Sort by
+            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option value="default">Featured</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {products.length > 0 && visible.length === 0 && (
@@ -84,7 +120,13 @@ export default function Home() {
               <span className="product-origin">{p.origin_country} · {p.category}</span>
               <h3 className="product-name">{p.name}</h3>
               <span className="product-price">₹{Number(p.price_inr).toLocaleString("en-IN")}</span>
-              {p.stock_quantity === 0 && <span className="stock-badge">Out of stock</span>}
+              {p.stock_quantity === 0 ? (
+                <span className="stock-badge">Out of stock</span>
+              ) : p.stock_quantity <= LOW_STOCK_HINT_THRESHOLD ? (
+                <span className="stock-badge">Only {p.stock_quantity} left</span>
+              ) : (
+                <span className="muted" style={{ fontSize: "0.75rem" }}>In stock · ships in 5-10 days</span>
+              )}
               <button
                 className="btn"
                 disabled={p.stock_quantity === 0}

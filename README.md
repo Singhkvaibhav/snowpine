@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 96 tests covering: order creation/validation, GST
+bug a mock would hide. 101 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -55,9 +55,11 @@ sweep, admin auth/product management, rate limiting, customer accounts
 linking, and that one customer can't view another's order), the
 stock-movement audit trail (correct deltas for order/release/admin-edit
 paths, and the low-stock list updating as stock crosses the threshold),
-and the low-stock email alert (fires exactly on the crossing into low
-stock, not on every sale of an already-low item, and not on unrelated
-edits or restocks).
+the low-stock email alert (fires exactly on the crossing into low stock,
+not on every sale of an already-low item, and not on unrelated edits or
+restocks), and the sales overview (revenue counted only from
+paid/shipped/delivered orders, top-products aggregation across multiple
+orders).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
@@ -134,12 +136,37 @@ frontend/
 paired with Inter for body text, an icy winter palette actually fitting
 the "Snowpine" name, a hero section, unified search+category toolbar,
 consistent card heights via line-clamped names) replacing the earlier
-bare-bones styling. Deliberately kept the placeholder product-thumb logic
-in `ProductThumb.jsx` completely unchanged (same inline `style.background`
-per category, same tests passing) and added visual polish (a sheen
-overlay, a decorative snowflake watermark in the hero) purely through
-CSS, specifically so the tests asserting on the exact computed background
-color didn't need to know or care about the redesign.
+bare-bones styling.
+
+**UX pass based on real review feedback** (not self-directed guesses):
+- **Placeholder thumbnails were the single biggest issue** - most of the
+  catalog sits in a few categories (Tableware, Baby Feeding), so coloring
+  by category rendered as a near-monotone wall of blue. `ProductThumb.jsx`
+  now hashes color from the product NAME into a 12-color palette spanning
+  distinct hue families (blue/green/red/purple/yellow), not shades of one
+  hue - `ProductThumb.test.jsx` was deliberately rewritten (same-category
+  consistency was the old contract; same-name determinism + real variety
+  across names is the new one) since the old test asserted the exact
+  behavior being changed, not a fixed bug. Thumb aspect ratio also
+  dropped from 1:1 to 4:3 so the placeholder doesn't dominate the card.
+- **Mobile header ate roughly a sixth of the screen** while staying
+  sticky - the tagline, nav links, and cart pill could each wrap onto
+  their own row. Now hidden tagline + tightened spacing below 640px,
+  and `.nav-links` stays one non-wrapping unit so it collapses to at
+  most two rows instead of three-plus.
+- **A dozen category pills wrapped onto three rows on mobile** - now a
+  horizontally scrolling strip below that width, the standard pattern
+  for this.
+- **"Cutlery & Kitchenware" and "Kitchenware & Tools" overlapped** -
+  merged into one category in `seed.sql` (real data cleanup, not a
+  display-only fix - 10 categories now, not 11).
+- **Added**: sort-by-price and origin-country filters in the toolbar, a
+  stock/delivery hint on every card ("Only N left" below the reorder-
+  point-adjacent threshold, otherwise "In stock · ships in 5-10 days"),
+  and a shipping-estimate + Shipping & Returns link in the hero. The
+  product detail page and per-card click-through to it already existed
+  from earlier in the build - not a gap, just not obvious from a
+  screenshot alone.
 
 **Inventory management** - `stock_movements` audit log plus a per-product
 `reorder_point`. Every real stock change (an order placed, an expired
@@ -159,6 +186,12 @@ has zero sales history pre-launch, and fitting a forecasting model to no
 data is worse than not having one - simple methods (moving averages,
 etc.) become worth building once a few months of real orders exist to
 learn from.
+
+**Sales overview** (`/admin/sales`) - total revenue, order counts by
+status, and top-selling products by units/revenue. Descriptive only, on
+purpose (see above) - counts paid/shipped/delivered orders as revenue,
+explicitly excluding pending (may never be paid) and cancelled (reversed)
+orders, which would otherwise overstate it.
 
 **Customer accounts** - `customers`/`customer_sessions` tables, cookie-
 based sessions (DB-backed, not a stateless signed token - logout is a

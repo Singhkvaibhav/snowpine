@@ -54,7 +54,10 @@ export default function AdminOrders() {
   return (
     <div>
       <h2>Orders</h2>
-      <p className="muted"><Link to="/admin/products">Manage products</Link></p>
+      <p className="muted">
+        <Link to="/admin/products">Products</Link> · <Link to="/admin/sales">Sales overview</Link> ·{" "}
+        <Link to="/admin/stock-activity">Stock activity</Link>
+      </p>
       {error && <p className="error-text">{error}</p>}
       {!orders ? (
         <p className="muted">Loading...</p>

@@ -236,6 +236,48 @@ async function listOrders() {
   return rows;
 }
 
+// "Real" revenue is paid/shipped/delivered orders only - a pending order
+// hasn't actually been paid for yet (may never be, see the reservation
+// sweep), and a cancelled one was reversed. Counting either as revenue
+// would overstate it.
+const REVENUE_STATUSES = ["paid", "shipped", "delivered"];
+
+async function getSalesOverview() {
+  const [{ rows: revenueRows }, { rows: statusRows }, { rows: topProducts }] = await Promise.all([
+    query(
+      `SELECT COALESCE(SUM(total_inr), 0) AS total_revenue, COUNT(*) AS order_count
+       FROM orders WHERE status = ANY($1)`,
+      [REVENUE_STATUSES]
+    ),
+    query("SELECT status, COUNT(*) AS count FROM orders GROUP BY status"),
+    query(
+      `SELECT p.id AS product_id, p.name,
+              SUM(oi.quantity) AS units_sold,
+              SUM(oi.quantity * oi.unit_price_inr) AS revenue
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       JOIN products p ON p.id = oi.product_id
+       WHERE o.status = ANY($1)
+       GROUP BY p.id, p.name
+       ORDER BY units_sold DESC
+       LIMIT 10`,
+      [REVENUE_STATUSES]
+    ),
+  ]);
+
+  return {
+    totalRevenue: Number(revenueRows[0].total_revenue),
+    orderCount: Number(revenueRows[0].order_count),
+    ordersByStatus: Object.fromEntries(statusRows.map((r) => [r.status, Number(r.count)])),
+    topProducts: topProducts.map((p) => ({
+      productId: p.product_id,
+      name: p.name,
+      unitsSold: Number(p.units_sold),
+      revenue: Number(p.revenue),
+    })),
+  };
+}
+
 async function updateOrderStatus(id, status) {
   if (!VALID_STATUSES.includes(status)) throw new OrderError(`Invalid status: ${status}`);
   const { rows } = await query("UPDATE orders SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
@@ -305,6 +347,7 @@ module.exports = {
   handleWebhookEvent,
   listOrders,
   updateOrderStatus,
+  getSalesOverview,
   sweepExpiredOrders,
   getOrder,
   getOrderForCustomer,

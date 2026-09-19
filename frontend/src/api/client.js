@@ -88,6 +88,12 @@ export async function adminFetchOrders(token) {
   return res.json();
 }
 
+export async function adminFetchSalesOverview(token) {
+  const res = await fetch("/api/admin/sales-overview", { headers: { "x-admin-token": token } });
+  if (!res.ok) throw new Error(res.status === 401 ? "Invalid admin token" : "Failed to load sales overview");
+  return res.json();
+}
+
 export async function adminUpdateOrderStatus(token, orderId, status) {
   const res = await fetch(`/api/admin/orders/${orderId}/status`, {
     method: "PATCH",

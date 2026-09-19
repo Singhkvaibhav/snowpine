@@ -149,7 +149,8 @@ export default function AdminProducts() {
     <div>
       <h2>Products</h2>
       <p className="muted">
-        <Link to="/admin">View orders</Link> · <Link to="/admin/stock-activity">Stock activity</Link>
+        <Link to="/admin">Orders</Link> · <Link to="/admin/sales">Sales overview</Link> ·{" "}
+        <Link to="/admin/stock-activity">Stock activity</Link>
       </p>
       {lowStockCount > 0 && (
         <p className="error-text">

@@ -32,7 +32,10 @@ export default function AdminStockActivity() {
   return (
     <div>
       <h2>Stock activity</h2>
-      <p className="muted"><Link to="/admin/products">Back to products</Link></p>
+      <p className="muted">
+        <Link to="/admin">Orders</Link> · <Link to="/admin/products">Products</Link> ·{" "}
+        <Link to="/admin/sales">Sales overview</Link>
+      </p>
       {error && <p className="error-text">{error}</p>}
       {!movements ? (
         <p className="muted">Loading...</p>

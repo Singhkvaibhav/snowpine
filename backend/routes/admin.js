@@ -1,7 +1,7 @@
 const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const { adminLimiter } = require("../middleware/rateLimit");
-const { listOrders, updateOrderStatus, OrderError } = require("../services/ordersService");
+const { listOrders, updateOrderStatus, getSalesOverview, OrderError } = require("../services/ordersService");
 const {
   listProducts,
   createProduct,
@@ -16,6 +16,10 @@ router.use(adminLimiter, adminAuth);
 
 router.get("/orders", async (req, res) => {
   res.json(await listOrders());
+});
+
+router.get("/sales-overview", async (req, res) => {
+  res.json(await getSalesOverview());
 });
 
 router.patch("/orders/:id/status", async (req, res) => {

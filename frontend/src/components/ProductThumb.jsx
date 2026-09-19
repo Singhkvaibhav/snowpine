@@ -1,23 +1,33 @@
-// Placeholder visual until real product photography is sourced - a
-// deterministic color per category plus the product's initial, so the
-// catalog reads visually distinct without using unlicensed brand images.
-const CATEGORY_COLORS = {
-  "Baby Carriers": "#7a8b99",
-  "Baby Feeding": "#5f8fa8",
-  "Baby Bedding": "#8aa9b8",
-  "Baby Clothing": "#6f7f9e",
-  "Tableware": "#3f6b7a",
-  "Bags": "#4a5a63",
-  "Home Decor": "#7d6a58",
-  "Cutlery & Kitchenware": "#5a6b5a",
-  "Textiles": "#8a6f7a",
-  "Kitchenware & Tools": "#a85f4a",
-  "Skincare": "#7a9a7f",
-};
-const DEFAULT_COLOR = "#5f7480";
+// Placeholder visual until real product photography is sourced. Colored
+// per PRODUCT (hashed from the name), not per category - a catalog where
+// most items sit in a handful of categories (Tableware, Baby Feeding)
+// would otherwise render as a wall of near-identical color if every item
+// in a category shared one swatch. Deliberately varied across families
+// (blue/green/red/purple/yellow), not just shades of one hue, so the grid
+// actually reads as a catalog rather than a monotone block.
+const PALETTE = [
+  "#2f6f8f", // ice blue
+  "#3f6b52", // forest
+  "#8a5a3c", // terracotta
+  "#5c5470", // plum-slate
+  "#7a8b52", // sage
+  "#a8763e", // ochre
+  "#4a5a63", // charcoal-blue
+  "#8f4a4a", // brick
+  "#3f7a7a", // teal
+  "#6b5a8a", // muted violet
+  "#5a7a4a", // olive
+  "#8a6a4a", // walnut
+];
+
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
 
 export default function ProductThumb({ product, style }) {
-  const color = CATEGORY_COLORS[product.category] || DEFAULT_COLOR;
+  const color = PALETTE[hashString(product.name) % PALETTE.length];
   const initial = product.name.trim().charAt(0).toUpperCase();
   return (
     <div className="product-thumb" style={{ background: color, ...style }} aria-hidden="true">
