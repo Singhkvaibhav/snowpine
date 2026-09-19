@@ -147,6 +147,34 @@ export async function adminCreateProduct(token, fields) {
   return data;
 }
 
+export async function adminFetchDiscountCodes(token) {
+  const res = await fetch("/api/admin/discount-codes", { headers: { "x-admin-token": token } });
+  if (!res.ok) throw new Error(res.status === 401 ? "Invalid admin token" : "Failed to load discount codes");
+  return res.json();
+}
+
+export async function adminCreateDiscountCode(token, fields) {
+  const res = await fetch("/api/admin/discount-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-admin-token": token },
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to create discount code");
+  return data;
+}
+
+export async function adminUpdateDiscountCode(token, id, fields) {
+  const res = await fetch(`/api/admin/discount-codes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "x-admin-token": token },
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to update discount code");
+  return data;
+}
+
 export async function adminFetchLowStock(token) {
   const res = await fetch("/api/admin/products/low-stock", { headers: { "x-admin-token": token } });
   if (!res.ok) throw new Error("Failed to load low-stock products");

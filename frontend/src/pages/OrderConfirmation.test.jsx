@@ -14,6 +14,8 @@ function baseOrder(overrides = {}) {
     customer_phone: "9876543210",
     shipping_address: "12 MG Road, Bangalore",
     total_inr: "4399.00",
+    discount_code: null,
+    discount_amount_inr: "0.00",
     razorpay_order_id: null,
     access_token: "test-token",
     items: [
@@ -23,6 +25,7 @@ function baseOrder(overrides = {}) {
         quantity: 1,
         unit_price_inr: "4399.00",
         gst_rate: "0.05",
+        line_total: 4399,
         taxable_value: 4399 / 1.05,
         gst_amount: 4399 - 4399 / 1.05,
       },
@@ -65,6 +68,42 @@ describe("OrderConfirmation", () => {
     expect(screen.getAllByText(/₹4,189\.52/)).toHaveLength(2); // taxable value
     expect(screen.getByText(/₹209\.48.*5%/)).toBeInTheDocument(); // gst amount + rate, table only
     expect(screen.getByText(/Total \(incl\. GST\): ₹4,399\.00/)).toBeInTheDocument();
+  });
+
+  test("shows the discount breakdown when a code was applied, computed pro-rata", async () => {
+    vi.spyOn(apiClient, "fetchOrder").mockResolvedValue(
+      baseOrder({
+        total_inr: "2199.50",
+        discount_code: "HALFOFF",
+        discount_amount_inr: "2199.50",
+        subtotal_inr: 4399,
+        items: [
+          {
+            product_id: 13,
+            name: "Kastehelmi Bowl",
+            quantity: 1,
+            unit_price_inr: "4399.00",
+            gst_rate: "0.05",
+            line_total: 2199.5,
+            taxable_value: 2199.5 / 1.05,
+            gst_amount: 2199.5 - 2199.5 / 1.05,
+          },
+        ],
+      })
+    );
+    renderOrderPage();
+
+    expect(await screen.findByText("Subtotal: ₹4,399.00")).toBeInTheDocument();
+    expect(screen.getByText("Discount (HALFOFF): -₹2,199.50")).toBeInTheDocument();
+    expect(screen.getByText(/Total \(incl\. GST\): ₹2,199\.50/)).toBeInTheDocument();
+  });
+
+  test("shows no discount breakdown when no code was used", async () => {
+    vi.spyOn(apiClient, "fetchOrder").mockResolvedValue(baseOrder());
+    renderOrderPage();
+
+    await screen.findByText("Kastehelmi Bowl");
+    expect(screen.queryByText(/Discount \(/)).not.toBeInTheDocument();
   });
 
   test("shows the human-readable status label", async () => {

@@ -18,6 +18,12 @@ const {
   getStockMovements,
   ProductError,
 } = require("../services/productsService");
+const {
+  listDiscountCodes,
+  createDiscountCode,
+  updateDiscountCode,
+  DiscountError,
+} = require("../services/discountService");
 
 const router = express.Router();
 router.use(adminLimiter, adminAuth);
@@ -100,6 +106,28 @@ router.patch("/products/:id", async (req, res) => {
     res.json(product);
   } catch (e) {
     if (e instanceof ProductError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+});
+
+router.get("/discount-codes", async (req, res) => {
+  res.json(await listDiscountCodes());
+});
+
+router.post("/discount-codes", async (req, res) => {
+  try {
+    res.status(201).json(await createDiscountCode(req.body));
+  } catch (e) {
+    if (e instanceof DiscountError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+});
+
+router.patch("/discount-codes/:id", async (req, res) => {
+  try {
+    res.json(await updateDiscountCode(req.params.id, req.body));
+  } catch (e) {
+    if (e instanceof DiscountError) return res.status(e.status).json({ error: e.message });
     throw e;
   }
 });

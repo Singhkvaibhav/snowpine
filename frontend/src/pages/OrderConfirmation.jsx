@@ -121,7 +121,7 @@ export default function OrderConfirmation() {
                 <td>{i.quantity}</td>
                 <td>{inr(i.taxable_value)}</td>
                 <td>{inr(i.gst_amount)} ({(Number(i.gst_rate) * 100).toFixed(0)}%)</td>
-                <td>{inr(Number(i.unit_price_inr) * i.quantity)}</td>
+                <td>{inr(i.line_total)}</td>
               </tr>
             ))}
           </tbody>
@@ -129,6 +129,12 @@ export default function OrderConfirmation() {
       </div>
 
       <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
+        {Number(order.discount_amount_inr) > 0 && (
+          <>
+            <p className="muted">Subtotal: {inr(order.subtotal_inr)}</p>
+            <p className="muted">Discount ({order.discount_code}): -{inr(order.discount_amount_inr)}</p>
+          </>
+        )}
         <p className="muted">Taxable value: {inr(totalTaxable)}</p>
         <p className="muted">GST: {inr(totalGst)}</p>
         <h3>Total (incl. GST): {inr(order.total_inr)}</h3>

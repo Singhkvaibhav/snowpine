@@ -150,7 +150,8 @@ export default function AdminProducts() {
       <h2>Products</h2>
       <p className="muted">
         <Link to="/admin">Orders</Link> · <Link to="/admin/sales">Sales overview</Link> ·{" "}
-        <Link to="/admin/stock-activity">Stock activity</Link>
+        <Link to="/admin/stock-activity">Stock activity</Link> ·{" "}
+        <Link to="/admin/discount-codes">Discount codes</Link>
       </p>
       {lowStockCount > 0 && (
         <p className="error-text">

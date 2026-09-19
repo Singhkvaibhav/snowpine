@@ -46,9 +46,12 @@ async function sendMail({ to, subject, text }) {
 const inr = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function renderOrderConfirmation(order) {
+  // i.line_total already reflects a discount code applied pro-rata (see
+  // ordersService.withTaxBreakdown) - using it here, not a fresh
+  // unit_price_inr * quantity, keeps the email in sync with what the
+  // customer was actually charged.
   const lines = order.items.map((i) => {
-    const lineTotal = Number(i.unit_price_inr) * i.quantity;
-    return `  ${i.name} x${i.quantity} - ${inr(lineTotal)} (incl. GST ${(Number(i.gst_rate) * 100).toFixed(0)}%: ${inr(i.gst_amount)})`;
+    return `  ${i.name} x${i.quantity} - ${inr(i.line_total)} (incl. GST ${(Number(i.gst_rate) * 100).toFixed(0)}%: ${inr(i.gst_amount)})`;
   });
   const totalGst = order.items.reduce((sum, i) => sum + i.gst_amount, 0);
   const totalTaxable = order.items.reduce((sum, i) => sum + i.taxable_value, 0);
@@ -63,6 +66,9 @@ function renderOrderConfirmation(order) {
     "",
     ...lines,
     "",
+    ...(Number(order.discount_amount_inr) > 0
+      ? [`Discount (${order.discount_code}): -${inr(order.discount_amount_inr)}`, ""]
+      : []),
     `Taxable value: ${inr(totalTaxable)}`,
     `GST: ${inr(totalGst)}`,
     `Total (incl. GST): ${inr(order.total_inr)}`,

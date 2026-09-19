@@ -10,7 +10,13 @@ export default function Checkout() {
   const { items, total, clearCart } = useCart();
   const { customer } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", shippingAddress: "" });
+  const [form, setForm] = useState({
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    shippingAddress: "",
+    discountCode: "",
+  });
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,10 +27,10 @@ export default function Checkout() {
   useEffect(() => {
     if (!customer) return;
     setForm((prev) => ({
+      ...prev,
       customerName: prev.customerName || customer.name,
       customerEmail: prev.customerEmail || customer.email,
       customerPhone: prev.customerPhone || customer.phone,
-      shippingAddress: prev.shippingAddress,
     }));
   }, [customer]);
 
@@ -44,6 +50,7 @@ export default function Checkout() {
     try {
       const { order, razorpayOrderId, razorpayKeyId } = await placeOrder({
         ...form,
+        discountCode: form.discountCode.trim() || undefined,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
 
@@ -64,7 +71,11 @@ export default function Checkout() {
       const rzp = new window.Razorpay({
         key: razorpayKeyId,
         order_id: razorpayOrderId,
-        amount: Math.round(total * 100),
+        // The order's own (possibly discounted) total, not the cart's
+        // pre-discount total - a valid discount code makes these differ,
+        // and the Razorpay order was created server-side against the
+        // discounted amount (see attachRazorpayOrder).
+        amount: Math.round(Number(order.total_inr) * 100),
         currency: "INR",
         name: "Snowpine",
         description: `Order #${order.id}`,
@@ -136,8 +147,21 @@ export default function Checkout() {
             onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })}
           />
         </label>
+        <label>
+          Discount code (optional)
+          <input
+            value={form.discountCode}
+            onChange={(e) => setForm({ ...form, discountCode: e.target.value })}
+            placeholder="e.g. WELCOME10"
+          />
+        </label>
 
         <h3>Total: ₹{total.toLocaleString("en-IN")}</h3>
+        {form.discountCode.trim() && (
+          <p className="muted" style={{ marginTop: "-0.75rem" }}>
+            Discount code applied at checkout - the confirmed total appears on the next page.
+          </p>
+        )}
         <button className="btn" type="submit" disabled={submitting}>
           {submitting ? "Processing..." : "Pay and place order"}
         </button>

@@ -35,7 +35,8 @@ export default function AdminSalesOverview() {
       <h2>Sales overview</h2>
       <p className="muted">
         <Link to="/admin">Orders</Link> · <Link to="/admin/products">Products</Link> ·{" "}
-        <Link to="/admin/stock-activity">Stock activity</Link>
+        <Link to="/admin/stock-activity">Stock activity</Link> ·{" "}
+        <Link to="/admin/discount-codes">Discount codes</Link>
       </p>
       {error && <p className="error-text">{error}</p>}
       {!overview ? (

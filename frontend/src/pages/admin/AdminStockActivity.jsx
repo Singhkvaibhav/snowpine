@@ -34,7 +34,8 @@ export default function AdminStockActivity() {
       <h2>Stock activity</h2>
       <p className="muted">
         <Link to="/admin">Orders</Link> · <Link to="/admin/products">Products</Link> ·{" "}
-        <Link to="/admin/sales">Sales overview</Link>
+        <Link to="/admin/sales">Sales overview</Link> ·{" "}
+        <Link to="/admin/discount-codes">Discount codes</Link>
       </p>
       {error && <p className="error-text">{error}</p>}
       {!movements ? (

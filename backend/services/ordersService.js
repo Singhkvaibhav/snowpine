@@ -10,6 +10,7 @@ const {
 } = require("../razorpay");
 const { sendOrderConfirmation, sendShippedNotification, sendRefundConfirmation } = require("../email");
 const { maybeSendLowStockAlert } = require("./productsService");
+const { redeemDiscountCode, DiscountError } = require("./discountService");
 
 const VALID_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const RESERVATION_TTL_MINUTES = Number(process.env.RESERVATION_TTL_MINUTES) || 30;
@@ -34,7 +35,10 @@ class OrderError extends Error {
 // transaction that places the order - never trust a client-submitted price,
 // and lock each product row (FOR UPDATE) so two concurrent checkouts can't
 // both oversell the last unit of stock.
-async function createOrder({ customerName, customerEmail, customerPhone, shippingAddress, items }, customerId = null) {
+async function createOrder(
+  { customerName, customerEmail, customerPhone, shippingAddress, items, discountCode },
+  customerId = null
+) {
   if (!customerName || !customerEmail || !customerPhone || !shippingAddress) {
     throw new OrderError("customerName, customerEmail, customerPhone, and shippingAddress are required");
   }
@@ -50,7 +54,7 @@ async function createOrder({ customerName, customerEmail, customerPhone, shippin
 
   const lineItemsSnapshot = [];
   const order = await withTransaction(async (tx) => {
-    let total = 0;
+    let subtotal = 0;
     const lineItems = [];
 
     for (const { productId, quantity } of items) {
@@ -65,18 +69,45 @@ async function createOrder({ customerName, customerEmail, customerPhone, shippin
         throw new OrderError(`Not enough stock for "${product.name}" (${product.stock_quantity} left)`);
       }
 
-      total += Number(product.price_inr) * quantity;
+      subtotal += Number(product.price_inr) * quantity;
       lineItems.push({ product, quantity });
     }
+
+    // Claims a use of the code (or throws) in the SAME transaction as the
+    // order itself - if anything after this point fails, the transaction
+    // rolls back and the code is never actually consumed. Converted to
+    // OrderError here so route handlers only ever need to know about one
+    // error type for this endpoint.
+    let discount = { code: null, amount: 0 };
+    if (discountCode) {
+      try {
+        discount = await redeemDiscountCode(tx, discountCode, subtotal);
+      } catch (e) {
+        if (e instanceof DiscountError) throw new OrderError(e.message, e.status);
+        throw e;
+      }
+    }
+    const total = Math.round((subtotal - discount.amount) * 100) / 100;
 
     // Authorizes viewing this order later (order-confirmation/tracking
     // link) - not the sequential id, which is trivially guessable.
     const accessToken = crypto.randomBytes(16).toString("hex");
 
     const { rows: orderRows } = await tx(
-      `INSERT INTO orders (customer_name, customer_email, customer_phone, shipping_address, total_inr, access_token, expires_at, customer_id)
-       VALUES ($1, $2, $3, $4, $5, $6, now() + ($7 || ' minutes')::interval, $8) RETURNING *`,
-      [customerName, customerEmail, customerPhone, shippingAddress, total, accessToken, RESERVATION_TTL_MINUTES, customerId]
+      `INSERT INTO orders (customer_name, customer_email, customer_phone, shipping_address, total_inr, discount_code, discount_amount_inr, access_token, expires_at, customer_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + ($9 || ' minutes')::interval, $10) RETURNING *`,
+      [
+        customerName,
+        customerEmail,
+        customerPhone,
+        shippingAddress,
+        total,
+        discount.code,
+        discount.amount,
+        accessToken,
+        RESERVATION_TTL_MINUTES,
+        customerId,
+      ]
     );
     const order = orderRows[0];
 
@@ -390,11 +421,16 @@ async function refundOrder(id) {
 
 // price_inr/unit_price_inr are GST-inclusive MRP (standard Indian retail
 // convention) - the taxable value and GST amount are derived by working
-// backward from that, not added on top.
-function withTaxBreakdown(item) {
-  const lineTotal = Number(item.unit_price_inr) * item.quantity;
+// backward from that, not added on top. A whole-order discount code is
+// applied pro-rata across line items (discountRatio, default 0 for the
+// common no-discount case) rather than only at the order total, so the
+// GST breakdown shown on the invoice reflects what was actually paid for
+// each item, not the pre-discount price - discounts known at the time of
+// supply are meant to reduce taxable value under GST, not sit outside it.
+function withTaxBreakdown(item, discountRatio = 0) {
+  const lineTotal = Number(item.unit_price_inr) * item.quantity * (1 - discountRatio);
   const taxableValue = lineTotal / (1 + Number(item.gst_rate));
-  return { ...item, taxable_value: taxableValue, gst_amount: lineTotal - taxableValue };
+  return { ...item, line_total: lineTotal, taxable_value: taxableValue, gst_amount: lineTotal - taxableValue };
 }
 
 async function getOrder(id) {
@@ -408,7 +444,9 @@ async function getOrder(id) {
      WHERE oi.order_id = $1`,
     [id]
   );
-  return { ...order, items: items.map(withTaxBreakdown) };
+  const subtotal = Number(order.total_inr) + Number(order.discount_amount_inr || 0);
+  const discountRatio = subtotal > 0 ? Number(order.discount_amount_inr || 0) / subtotal : 0;
+  return { ...order, subtotal_inr: subtotal, items: items.map((i) => withTaxBreakdown(i, discountRatio)) };
 }
 
 // For the customer-facing order-confirmation/tracking route: either the

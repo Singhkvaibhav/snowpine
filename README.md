@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 109 tests covering: order creation/validation, GST
+bug a mock would hide. 125 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -59,17 +59,21 @@ the low-stock email alert (fires exactly on the crossing into low stock,
 not on every sale of an already-low item, and not on unrelated edits or
 restocks), the sales overview (revenue counted only from
 paid/shipped/delivered orders, top-products aggregation across multiple
-orders), and the returns/refunds state machine (each of the three
+orders), the returns/refunds state machine (each of the three
 transitions rejects being called out of order, restocking uses the real
 audit trail, and the refund path calls a mocked Razorpay refund with the
-correct payment id and amount).
+correct payment id and amount), and discount codes (percent/flat math,
+minimum-order and expiry/deactivation rejections, `max_uses` enforced
+across separate concurrent-style requests without over-redeeming, a
+failed order never consuming a use, and the GST breakdown reflecting the
+discount pro-rata rather than the pre-discount price).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
 artifact from many isolated per-file module registries, not something
 the running server actually does).
 
-**Frontend** - Vitest + React Testing Library, 49 tests covering
+**Frontend** - Vitest + React Testing Library, 51 tests covering
 `CartContext` (the source of truth for what a customer is about to buy),
 `Home`'s search/category filtering, `ProductThumb`'s placeholder-image
 logic, `AuthContext`/`MyOrders` (login state, redirect-when-logged-out),
@@ -195,6 +199,25 @@ status, and top-selling products by units/revenue. Descriptive only, on
 purpose (see above) - counts paid/shipped/delivered orders as revenue,
 explicitly excluding pending (may never be paid) and cancelled (reversed)
 orders, which would otherwise overstate it.
+
+**Discount codes** (`/admin/discount-codes`) - percent-off or flat-₹-off
+codes with an optional minimum order value, expiry date, and `max_uses`
+cap. Redeeming a code claims a use with the same atomic-conditional-UPDATE
+pattern the stock reservation already relies on
+(`discountService.redeemDiscountCode`, run inside the same DB transaction
+as order creation), so a limited code can't be over-redeemed under
+concurrent checkouts and a failed order never burns a use it shouldn't
+have. The discount is applied pro-rata across line items, not just
+subtracted from the order total, so the GST breakdown (and the order
+confirmation email) reflects what was actually paid per item rather than
+the pre-discount price - a discount known at the time of sale is meant to
+reduce taxable value under GST, not sit outside it. Invalid/expired/
+deactivated/used-up codes all return the same generic error, the same
+reasoning as the login flow's generic error: distinguishing them would
+let a caller probe which codes exist. Verified end-to-end against the
+running dev API and visually via Playwright (checkout with a code ->
+order confirmation showing subtotal/discount/GST/total all correctly
+recomputed).
 
 **Returns & refunds** - a real state machine, not a value bolted onto the
 generic status PATCH: `delivered → return_requested → returned →
