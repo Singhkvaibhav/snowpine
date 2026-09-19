@@ -9,6 +9,7 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_ADDRESS = process.env.SMTP_FROM || "orders@snowpine.example";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 function isConfigured() {
   return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
@@ -94,4 +95,21 @@ async function sendShippedNotification(order) {
   await sendMail({ to: order.customer_email, subject: `Snowpine order #${order.id} has shipped`, text });
 }
 
-module.exports = { isConfigured, sendMail, sendOrderConfirmation, sendShippedNotification };
+// Fires once per crossing into low stock (see productsService's
+// maybeSendLowStockAlert), not on every order against an already-low
+// product - otherwise a slow-moving low-stock item would spam this on
+// every single sale instead of once when it actually needs attention.
+// Silently no-ops without ADMIN_EMAIL set, same as every other optional
+// integration here - inventory alerts are a convenience, not something
+// that should block checkout if unconfigured.
+async function sendLowStockAlert(product) {
+  if (!ADMIN_EMAIL) return;
+  const text = [
+    `${product.name} has dropped to ${product.stock_quantity} units, at or below its reorder point of ${product.reorder_point}.`,
+    "",
+    `Manage it: ${FRONTEND_URL}/admin/products`,
+  ].join("\n");
+  await sendMail({ to: ADMIN_EMAIL, subject: `Snowpine: low stock - ${product.name}`, text });
+}
+
+module.exports = { isConfigured, sendMail, sendOrderConfirmation, sendShippedNotification, sendLowStockAlert };

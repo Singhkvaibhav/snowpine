@@ -66,17 +66,21 @@ async function updateProduct(id, fields) {
   const keys = Object.keys(fields).filter((k) => EDITABLE_FIELDS.includes(k));
   if (keys.length === 0) throw new ProductError("No editable fields provided");
 
-  return withTransaction(async (tx) => {
-    const { rows: before } = await tx("SELECT stock_quantity FROM products WHERE id = $1 FOR UPDATE", [id]);
+  let beforeSnapshot;
+  const updated = await withTransaction(async (tx) => {
+    const { rows: before } = await tx("SELECT stock_quantity, reorder_point FROM products WHERE id = $1 FOR UPDATE", [
+      id,
+    ]);
     if (!before[0]) throw new ProductError("Product not found", 404);
+    beforeSnapshot = before[0];
 
     const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(", ");
     const values = keys.map((k) => fields[k]);
     const { rows } = await tx(`UPDATE products SET ${setClause} WHERE id = $1 RETURNING *`, [id, ...values]);
-    const updated = rows[0];
+    const updatedRow = rows[0];
 
     if (keys.includes("stock_quantity")) {
-      const delta = updated.stock_quantity - before[0].stock_quantity;
+      const delta = updatedRow.stock_quantity - beforeSnapshot.stock_quantity;
       if (delta !== 0) {
         await tx("INSERT INTO stock_movements (product_id, delta, reason) VALUES ($1, $2, 'admin_adjustment')", [
           id,
@@ -85,8 +89,34 @@ async function updateProduct(id, fields) {
       }
     }
 
-    return updated;
+    return updatedRow;
   });
+
+  // Outside the transaction (network call, must not hold the row lock),
+  // and only when this specific edit changed stock - a price/name edit on
+  // an already-low product must not re-trigger the alert.
+  if (keys.includes("stock_quantity")) {
+    await maybeSendLowStockAlert(beforeSnapshot, updated);
+  }
+
+  return updated;
+}
+
+// Fires only on the crossing INTO low stock (was above reorder_point,
+// now at or below it) - not on every change to an already-low product,
+// which would spam this on every sale of a slow-moving item instead of
+// once when it actually first needs attention.
+async function maybeSendLowStockAlert(before, after) {
+  const wasHealthy = before.stock_quantity > before.reorder_point;
+  const isLowNow = after.stock_quantity <= after.reorder_point;
+  if (!wasHealthy || !isLowNow) return;
+
+  try {
+    const { sendLowStockAlert } = require("../email");
+    await sendLowStockAlert(after);
+  } catch (e) {
+    console.error(`Failed to send low-stock alert for product ${after.id}:`, e);
+  }
 }
 
 async function getLowStockProducts() {
@@ -117,5 +147,6 @@ module.exports = {
   updateProduct,
   getLowStockProducts,
   getStockMovements,
+  maybeSendLowStockAlert,
   ProductError,
 };

@@ -8,6 +8,7 @@ const {
   keyId,
 } = require("../razorpay");
 const { sendOrderConfirmation, sendShippedNotification } = require("../email");
+const { maybeSendLowStockAlert } = require("./productsService");
 
 const VALID_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const RESERVATION_TTL_MINUTES = Number(process.env.RESERVATION_TTL_MINUTES) || 30;
@@ -46,7 +47,8 @@ async function createOrder({ customerName, customerEmail, customerPhone, shippin
     throw new OrderError("At least one item is required");
   }
 
-  return withTransaction(async (tx) => {
+  const lineItemsSnapshot = [];
+  const order = await withTransaction(async (tx) => {
     let total = 0;
     const lineItems = [];
 
@@ -88,10 +90,20 @@ async function createOrder({ customerName, customerEmail, customerPhone, shippin
         product.id,
         -quantity,
       ]);
+      lineItemsSnapshot.push({ product, quantity });
     }
 
     return order;
   });
+
+  // Outside the transaction (network call, must not hold the row locks
+  // acquired above) - checks each purchased product for crossing INTO low
+  // stock as a result of this order.
+  for (const { product, quantity } of lineItemsSnapshot) {
+    await maybeSendLowStockAlert(product, { ...product, stock_quantity: product.stock_quantity - quantity });
+  }
+
+  return order;
 }
 
 // Undoes createOrder: restores each line item's stock and removes the
