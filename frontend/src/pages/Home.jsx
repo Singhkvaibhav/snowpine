@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
@@ -9,9 +9,13 @@ const LOW_STOCK_HINT_THRESHOLD = 5;
 
 export default function Home() {
   usePageMeta();
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
-  const [activeCategory, setActiveCategory] = useState("All");
+  // Seeded from ?category= (e.g. a product detail page's breadcrumb link
+  // back to its category) so that link actually lands pre-filtered,
+  // rather than just dumping the visitor back on an unfiltered catalog.
+  const [activeCategory, setActiveCategory] = useState(() => searchParams.get("category") || "All");
   const [country, setCountry] = useState("All");
   const [sort, setSort] = useState("default");
   const [search, setSearch] = useState("");
@@ -52,19 +56,48 @@ export default function Home() {
   return (
     <div>
       <section className="hero">
-        <h1>Nordic craftsmanship, delivered to your door</h1>
-        <p>Curated baby gear, home design, and skincare from Sweden, Finland, Denmark, and Norway - authentic, and ready to ship across India.</p>
-        <div className="hero-badges">
-          <span className="hero-badge">Curated from trusted Nordic brands</span>
-          <span className="hero-badge">Duty and GST included in every price</span>
-          <span className="hero-badge">Ships across India, 5-10 business days</span>
-          <span className="hero-badge"><Link to="/shipping-returns">Shipping &amp; returns policy</Link></span>
+        <div className="hero-content">
+          <span className="hero-eyebrow">Sweden · Finland · Denmark · Norway</span>
+          <h1>Nordic craftsmanship, delivered to your door</h1>
+          <p>Curated baby gear, home design, and skincare from the Nordics - authentic, and ready to ship across India.</p>
+          <div className="hero-actions">
+            <a href="#shop" className="btn">Shop the collection</a>
+            <Link to="/shipping-returns" className="hero-link">Shipping &amp; returns policy →</Link>
+          </div>
+          <div className="hero-badges">
+            <span className="hero-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              Curated from trusted Nordic brands
+            </span>
+            <span className="hero-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" /></svg>
+              Duty and GST included in every price
+            </span>
+            <span className="hero-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="6" width="14" height="11" rx="1" /><path d="M15 10h4l3 3v4h-7z" /><circle cx="6" cy="19" r="1.6" /><circle cx="17.5" cy="19" r="1.6" /></svg>
+              Ships across India, 5-10 business days
+            </span>
+          </div>
+        </div>
+        <div className="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 200 200" fill="none">
+            <polygon points="0,170 55,70 100,140 130,90 200,170" fill="var(--accent)" opacity="0.16" />
+            <polygon points="30,170 90,95 140,170" fill="var(--accent)" opacity="0.22" />
+            <polygon points="110,170 160,80 200,170" fill="var(--accent-dark)" opacity="0.18" />
+            <circle cx="152" cy="46" r="16" fill="var(--warm)" opacity="0.5" />
+            <g stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" opacity="0.55">
+              <line x1="40" y1="34" x2="40" y2="54" />
+              <line x1="30" y1="44" x2="50" y2="44" />
+              <line x1="33" y1="37" x2="47" y2="51" />
+              <line x1="47" y1="37" x2="33" y2="51" />
+            </g>
+          </svg>
         </div>
       </section>
 
       {error && <p className="error-text">{error}</p>}
 
-      <div className="toolbar">
+      <div className="toolbar" id="shop">
         <div className="search-field">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="11" cy="11" r="7" />

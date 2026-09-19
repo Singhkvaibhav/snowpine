@@ -62,11 +62,27 @@ function Header() {
 function Footer() {
   return (
     <footer className="site-footer">
-      <div>© {new Date().getFullYear()} Snowpine</div>
-      <div>
-        <Link to="/shipping-returns">Shipping &amp; Returns</Link>
-        <Link to="/terms">Terms</Link>
-        <Link to="/privacy">Privacy</Link>
+      <div className="site-footer-top">
+        <div className="site-footer-brand">
+          <strong>Snowpine</strong>
+          <p className="muted">Nordic baby gear, home design, and skincare - authentic, and shipped across India.</p>
+        </div>
+        <div className="site-footer-col">
+          <span className="site-footer-heading">Shop</span>
+          <Link to="/">All products</Link>
+          <Link to="/cart">Cart</Link>
+          <Link to="/account/orders">Your orders</Link>
+        </div>
+        <div className="site-footer-col">
+          <span className="site-footer-heading">Help</span>
+          <Link to="/shipping-returns">Shipping &amp; Returns</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+        </div>
+      </div>
+      <div className="site-footer-bottom">
+        <span>© {new Date().getFullYear()} Snowpine</span>
+        <span>Made with care · Shipped from India</span>
       </div>
     </footer>
   );

@@ -111,61 +111,79 @@ export default function Checkout() {
 
       {error && <p className="error-text">{error}</p>}
 
-      <form onSubmit={handleSubmit} className="form-grid">
-        <label>
-          Name
-          <input
-            required
-            value={form.customerName}
-            onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-          />
-        </label>
-        <label>
-          Email
-          <input
-            required
-            type="email"
-            value={form.customerEmail}
-            onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-          />
-        </label>
-        <label>
-          Phone (for delivery)
-          <input
-            required
-            type="tel"
-            pattern="[0-9+ ]{10,15}"
-            value={form.customerPhone}
-            onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-          />
-        </label>
-        <label>
-          Shipping address
-          <textarea
-            required
-            value={form.shippingAddress}
-            onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })}
-          />
-        </label>
-        <label>
-          Discount code (optional)
-          <input
-            value={form.discountCode}
-            onChange={(e) => setForm({ ...form, discountCode: e.target.value })}
-            placeholder="e.g. WELCOME10"
-          />
-        </label>
+      <div className="checkout-layout">
+        <form onSubmit={handleSubmit} className="form-grid" style={{ maxWidth: "none" }}>
+          <label>
+            Name
+            <input
+              required
+              value={form.customerName}
+              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              required
+              type="email"
+              value={form.customerEmail}
+              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+            />
+          </label>
+          <label>
+            Phone (for delivery)
+            <input
+              required
+              type="tel"
+              pattern="[0-9+ ]{10,15}"
+              value={form.customerPhone}
+              onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+            />
+          </label>
+          <label>
+            Shipping address
+            <textarea
+              required
+              value={form.shippingAddress}
+              onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })}
+            />
+          </label>
+          <label>
+            Discount code (optional)
+            <input
+              value={form.discountCode}
+              onChange={(e) => setForm({ ...form, discountCode: e.target.value })}
+              placeholder="e.g. WELCOME10"
+            />
+          </label>
 
-        <h3>Total: ₹{total.toLocaleString("en-IN")}</h3>
-        {form.discountCode.trim() && (
-          <p className="muted" style={{ marginTop: "-0.75rem" }}>
-            Discount code applied at checkout - the confirmed total appears on the next page.
-          </p>
-        )}
-        <button className="btn" type="submit" disabled={submitting}>
-          {submitting ? "Processing..." : "Pay and place order"}
-        </button>
-      </form>
+          <button className="btn" type="submit" disabled={submitting} style={{ marginTop: "0.5rem" }}>
+            {submitting ? "Processing..." : "Pay and place order"}
+          </button>
+        </form>
+
+        <aside className="order-summary">
+          <h3>Order summary</h3>
+          <ul className="order-summary-items">
+            {items.map((i) => (
+              <li key={i.productId}>
+                <span>{i.name} <span className="muted">×{i.quantity}</span></span>
+                <span>₹{(i.priceInr * i.quantity).toLocaleString("en-IN")}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="order-summary-row total">
+            <span>Total</span>
+            <span>₹{total.toLocaleString("en-IN")}</span>
+          </div>
+          {form.discountCode.trim() && (
+            <p className="muted" style={{ fontSize: "0.8rem" }}>
+              Discount code applied at checkout - the confirmed total appears on the next page.
+            </p>
+          )}
+          <p className="muted" style={{ fontSize: "0.78rem" }}>GST breakdown shown on your order confirmation.</p>
+        </aside>
+      </div>
     </div>
   );
 }

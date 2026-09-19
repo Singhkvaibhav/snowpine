@@ -73,13 +73,16 @@ real database; `--forceExit` only after directly ruling out a real leak
 artifact from many isolated per-file module registries, not something
 the running server actually does).
 
-**Frontend** - Vitest + React Testing Library, 51 tests covering
+**Frontend** - Vitest + React Testing Library, 64 tests covering
 `CartContext` (the source of truth for what a customer is about to buy),
-`Home`'s search/category filtering, `ProductThumb`'s placeholder-image
-logic, `AuthContext`/`MyOrders` (login state, redirect-when-logged-out),
-and `OrderConfirmation`'s GST display and payment-retry flow
-(verified the retry reopens Razorpay on the *same* `razorpay_order_id`,
-not a new one - the exact behavior the double-reservation fix depends on).
+`Home`'s search/category filtering, `ProductThumb`'s category-icon logic,
+`ProductDetail`'s quantity stepper/related-products/add-to-cart-with-
+quantity, `Cart`'s line/order totals and remove behavior, `usePageMeta`'s
+per-route title/description, `AuthContext`/`MyOrders` (login state,
+redirect-when-logged-out), and `OrderConfirmation`'s GST display,
+discount breakdown, and payment-retry flow (verified the retry reopens
+Razorpay on the *same* `razorpay_order_id`, not a new one - the exact
+behavior the double-reservation fix depends on).
 
 A few worth calling out because they test actual bugs this project hit,
 not hypotheticals:
@@ -174,6 +177,68 @@ bare-bones styling.
   product detail page and per-card click-through to it already existed
   from earlier in the build - not a gap, just not obvious from a
   screenshot alone.
+
+**Significant UI/UX pass** (self-directed, in response to "still looks very
+basic" feedback - a from-scratch visual/interaction upgrade, not another
+round of small fixes):
+- **Placeholder thumbnails redesigned from a plain color+initial block into
+  category-matched line-icon illustrations** (`ProductThumb.jsx`) - a
+  bottle for Baby Feeding, a mug-with-handle for Tableware, a droplet for
+  Skincare, etc., across all 10 categories, each icon built only from
+  primitive SVG shapes (circle/rect/line/ellipse/one well-known arc or
+  teardrop path) so there's no risk of a hand-tuned bezier curve rendering
+  as a blob. Still hashes the base color from the product NAME (the fix
+  from the previous round), just with a real pictogram on top instead of
+  a bare letter. `ProductThumb.test.jsx` rewritten again since the
+  contract changed again - this time asserting the right icon shape
+  renders per category and an unrecognized category falls back to a
+  generic gift-box icon, not asserting on letter text that no longer
+  exists.
+- **Hero rebuilt** as a two-column layout on wider screens: copy + a
+  primary "Shop the collection" CTA (anchors down to the grid) on the
+  left, a decorative Nordic-landscape illustration (layered mountains,
+  a sun, a snowflake - all inline SVG, `aria-hidden`) on the right. Trust
+  badges upgraded from plain bullet dots to actual icons.
+- **Product detail page rebuilt from nearly empty to a real PDP**: a
+  breadcrumb (Shop / Category / Product - the category link actually
+  filters the shop page via a `?category=` param `Home.jsx` now reads on
+  mount), a quantity stepper (bounded by real stock, not just a bare
+  "Add to cart"), a trust-signal list (secure payment, GST invoice,
+  delivery estimate), and a "You may also like" row of same-category
+  products. New `ProductDetail.test.jsx` covers the stepper's bounds, that
+  related products exclude the current item and other categories, and
+  that add-to-cart actually uses the selected quantity.
+- **Cart rebuilt** from a bare HTML table into item cards (with the same
+  category-icon thumbnail, now hashed onto cart items too - `CartContext`
+  stores `category` per line item for this) plus a sticky order-summary
+  sidebar, replacing a raw number `<input>` with the same quantity-stepper
+  pattern the product page uses. New `Cart.test.jsx`.
+- **Checkout given an order-summary sidebar** - previously the form was
+  the entire page and a customer filling it out couldn't see what they
+  were actually buying. Also fixed two real bugs this surfaced: the
+  Razorpay widget was passed the cart's pre-discount `total` instead of
+  the order's actual (possibly discounted) total as `amount`, and would
+  have shown a payment amount mismatch to any customer using a discount
+  code.
+- **Order confirmation wrapped in a card** matching the rest of the site
+  (it was rendering directly on the page background before, the only
+  page that did), with a green check icon for paid/shipped/delivered
+  orders.
+- **Mobile product grid switched from 1 to 2 columns** below 480px -
+  with 39 placeholder-thumbnail products, a single full-width column was
+  a very long scroll for very little information per screen.
+- **Footer expanded** from a single copyright line into brand blurb +
+  Shop/Help link columns, matching a real site footer instead of reading
+  like a placeholder.
+
+A caught-and-fixed bug from this work, not a design decision: the first
+draft of `Cart.test.jsx` seeded cart items by calling `addItem` directly
+in a test component's render body with no guard - since `addItem` changes
+`CartProvider`'s state, every state change re-rendered the seed component,
+which called `addItem` again, forever. Moved the seed into a `useEffect`
+with a ran-once ref; startup-hang bugs like this are exactly why this
+project runs tests with everything actually verified, not left running
+in the background unread.
 
 **Inventory management** - `stock_movements` audit log plus a per-product
 `reorder_point`. Every real stock change (an order placed, an expired

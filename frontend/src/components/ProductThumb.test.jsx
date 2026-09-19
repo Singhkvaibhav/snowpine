@@ -1,22 +1,33 @@
 import { describe, test, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import ProductThumb from "./ProductThumb";
 
 describe("ProductThumb", () => {
-  test("shows the uppercased first letter of the product name", () => {
-    render(<ProductThumb product={{ name: "kånken mini" }} />);
-    expect(screen.getByText("K")).toBeInTheDocument();
+  test("renders an icon appropriate to the product's category", () => {
+    const { container } = render(<ProductThumb product={{ name: "Kastehelmi Bowl", category: "Tableware" }} />);
+    const svg = container.querySelector("svg.product-thumb-icon");
+    expect(svg).toBeInTheDocument();
+    // Tableware's icon is a rect (mug body) + a handle arc path - not the
+    // shapes any other category's icon uses.
+    expect(svg.querySelector("rect")).toBeInTheDocument();
+    expect(svg.querySelector("path")).toBeInTheDocument();
   });
 
-  test("trims leading whitespace before taking the initial", () => {
-    render(<ProductThumb product={{ name: "  Bowl" }} />);
-    expect(screen.getByText("B")).toBeInTheDocument();
+  test("different categories render structurally different icons", () => {
+    const { container: tableware } = render(
+      <ProductThumb product={{ name: "A", category: "Tableware" }} />
+    );
+    const { container: skincare } = render(<ProductThumb product={{ name: "A", category: "Skincare" }} />);
+    expect(tableware.querySelector("svg").innerHTML).not.toBe(skincare.querySelector("svg").innerHTML);
   });
 
-  // Colored per product (hashed from the name), not per category - a
-  // catalog dominated by a few categories would otherwise render as a
-  // wall of near-identical color. Same name must still be deterministic
-  // (same product always looks the same across a reload).
+  test("falls back to a generic icon for an unrecognized or missing category", () => {
+    const { container } = render(<ProductThumb product={{ name: "Mystery Item", category: "Nonexistent" }} />);
+    // The gift-box fallback is built from a rect + two crossing lines.
+    expect(container.querySelector("svg rect")).toBeInTheDocument();
+    expect(container.querySelectorAll("svg line")).toHaveLength(2);
+  });
+
   test("is deterministic - the same product name always gets the same color", () => {
     const { container: a } = render(<ProductThumb product={{ name: "Kastehelmi Bowl" }} />);
     const { container: b } = render(<ProductThumb product={{ name: "Kastehelmi Bowl" }} />);

@@ -29,7 +29,10 @@ export function CartProvider({ children }) {
       if (existing) {
         return prev.map((i) => (i.productId === product.id ? { ...i, quantity: i.quantity + quantity } : i));
       }
-      return [...prev, { productId: product.id, name: product.name, priceInr: Number(product.price_inr), quantity }];
+      return [
+        ...prev,
+        { productId: product.id, name: product.name, category: product.category, priceInr: Number(product.price_inr), quantity },
+      ];
     });
   }
 
