@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import usePageMeta from "../hooks/usePageMeta";
 
 export default function Signup() {
+  usePageMeta({ title: "Sign up" });
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });

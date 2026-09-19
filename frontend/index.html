@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Snowpine - Nordic goods, delivered in India</title>
+    <!-- Static fallback for crawlers/share-preview bots that don't execute
+         JS - usePageMeta.js overrides the description (and document.title)
+         per route once the app mounts. No og:image yet: real product
+         photography doesn't exist - a broken image in a share preview
+         reads worse than no image at all. -->
+    <meta
+      name="description"
+      content="Curated Nordic baby gear, home design, and skincare from Sweden, Finland, Denmark, and Norway - authentic, duty and GST included, shipped across India."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Snowpine" />
+    <meta property="og:title" content="Snowpine - Nordic goods, delivered in India" />
+    <meta
+      property="og:description"
+      content="Curated Nordic baby gear, home design, and skincare from Sweden, Finland, Denmark, and Norway - authentic, duty and GST included, shipped across India."
+    />
+    <meta name="twitter:card" content="summary" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Fraunces: a warm editorial serif for headings/brand, paired with

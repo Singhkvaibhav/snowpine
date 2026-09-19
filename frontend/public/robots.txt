@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /admin
+Disallow: /order/
+Allow: /
+
+# [FILL IN] replace with the real production domain once one exists -
+# search engines fetch this file from whatever host serves it, so this
+# only needs updating if the sitemap is ever hosted somewhere other than
+# <site>/api/sitemap.xml.
+Sitemap: https://snowpine.example/api/sitemap.xml

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { fetchOrder, fetchConfig, verifyPayment } from "../api/client";
+import usePageMeta from "../hooks/usePageMeta";
 
 const STATUS_LABEL = {
   pending: "Pending payment",
@@ -8,12 +9,16 @@ const STATUS_LABEL = {
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
+  return_requested: "Return requested",
+  returned: "Returned",
+  refunded: "Refunded",
 };
 
 const inr = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function OrderConfirmation() {
   const { id } = useParams();
+  usePageMeta({ title: `Order #${id}` });
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const [order, setOrder] = useState(null);
@@ -79,6 +84,13 @@ export default function OrderConfirmation() {
     <div>
       <h2>Order #{order.id}</h2>
       <p className="muted">Status: {STATUS_LABEL[order.status] || order.status}</p>
+
+      {order.status === "refunded" && (
+        <p className="muted">
+          Refunded {inr(order.refunded_amount_inr)}
+          {order.refunded_at && ` on ${new Date(order.refunded_at).toLocaleDateString("en-IN")}`}
+        </p>
+      )}
 
       {order.status === "pending" && order.razorpay_order_id && (
         <div style={{ marginBottom: "1rem" }}>

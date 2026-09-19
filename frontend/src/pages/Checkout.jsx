@@ -3,8 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "../cart/CartContext";
 import { useAuth } from "../auth/AuthContext";
 import { placeOrder, verifyPayment } from "../api/client";
+import usePageMeta from "../hooks/usePageMeta";
 
 export default function Checkout() {
+  usePageMeta({ title: "Checkout" });
   const { items, total, clearCart } = useCart();
   const { customer } = useAuth();
   const navigate = useNavigate();

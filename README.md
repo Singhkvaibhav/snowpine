@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 108 tests covering: order creation/validation, GST
+bug a mock would hide. 109 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -69,7 +69,7 @@ real database; `--forceExit` only after directly ruling out a real leak
 artifact from many isolated per-file module registries, not something
 the running server actually does).
 
-**Frontend** - Vitest + React Testing Library, 45 tests covering
+**Frontend** - Vitest + React Testing Library, 49 tests covering
 `CartContext` (the source of truth for what a customer is about to buy),
 `Home`'s search/category filtering, `ProductThumb`'s placeholder-image
 logic, `AuthContext`/`MyOrders` (login state, redirect-when-logged-out),
@@ -222,6 +222,26 @@ missing was an actual provider. Defaults to Resend's shared
 needs no domain verification but can only deliver to the Resend account's
 own signup address - swap in a verified custom domain's address once one
 exists to email real customers.
+
+**SEO basics** - honest about what a client-rendered SPA can and can't do
+here without a bigger SSR/prerendering investment. `usePageMeta.js` sets
+`document.title` and the meta description per route (product name +
+description on the detail page, a page-specific title everywhere else,
+reverting to the site default when a page doesn't set one - otherwise the
+*previous* page's title would leak into the next one). `GET /api/sitemap.xml`
+generates a sitemap from live product data on every request rather than a
+static file that goes stale as the catalog changes; `frontend/public/robots.txt`
+declares it via a `Sitemap:` directive (needed since this route lives
+under `/api/`, not the site root - see the route's own comment for why)
+and disallows `/admin` and `/order/` (the latter carries an
+authorization token in the URL and should never be indexed). Static
+Open Graph/Twitter meta tags in `index.html` cover crawlers that don't
+execute JS at all; deliberately no `og:image` since there's no real
+product photography yet - a broken image in a share preview is worse
+than none. What this does NOT solve: a crawler that doesn't execute
+JavaScript still only ever sees the homepage's static title/description,
+never a real product's - that needs SSR or prerendering, a meaningfully
+bigger change than "basics."
 
 **Customer accounts** - `customers`/`customer_sessions` tables, cookie-
 based sessions (DB-backed, not a stateless signed token - logout is a

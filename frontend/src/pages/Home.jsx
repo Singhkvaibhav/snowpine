@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
+import usePageMeta from "../hooks/usePageMeta";
 
 const LOW_STOCK_HINT_THRESHOLD = 5;
 
 export default function Home() {
+  usePageMeta();
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState("All");

@@ -24,6 +24,19 @@ describe("health and config", () => {
   });
 });
 
+describe("GET /api/sitemap.xml", () => {
+  test("includes the homepage and every product, generated fresh from live data", async () => {
+    const product = await insertProduct({ name: "Sitemap Test Product" });
+
+    const res = await request(app).get("/api/sitemap.xml");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/xml/);
+    expect(res.text).toContain("<urlset");
+    expect(res.text).toContain(`<loc>${process.env.FRONTEND_URL}/product/${product.id}</loc>`);
+    expect(res.text).toContain(`<loc>${process.env.FRONTEND_URL}</loc>`);
+  });
+});
+
 describe("GET /api/products", () => {
   test("returns an empty list with no products", async () => {
     const res = await request(app).get("/api/products");

@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { fetchProduct } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
+import usePageMeta from "../hooks/usePageMeta";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export default function ProductDetail() {
   const [error, setError] = useState(null);
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
+  usePageMeta({ title: product?.name, description: product?.description });
 
   useEffect(() => {
     setProduct(null);

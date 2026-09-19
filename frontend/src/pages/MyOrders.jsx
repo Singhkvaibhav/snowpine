@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { fetchMyOrders } from "../api/client";
+import usePageMeta from "../hooks/usePageMeta";
 
 const STATUS_LABEL = {
   pending: "Pending payment",
@@ -9,9 +10,13 @@ const STATUS_LABEL = {
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
+  return_requested: "Return requested",
+  returned: "Returned",
+  refunded: "Refunded",
 };
 
 export default function MyOrders() {
+  usePageMeta({ title: "Your Orders" });
   const { customer, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState(null);

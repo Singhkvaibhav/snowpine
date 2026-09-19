@@ -12,6 +12,7 @@ const authRouter = require("./routes/auth");
 const { handleWebhookEvent, sweepExpiredOrders, OrderError } = require("./services/ordersService");
 const { keyId: razorpayKeyId } = require("./razorpay");
 const { assertValidConfig } = require("./configCheck");
+const { listProducts } = require("./services/productsService");
 
 // Before anything binds a port or touches the database: refuse to start
 // on production config that isn't safe to run. Deliberately ahead of
@@ -48,6 +49,38 @@ app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/auth", authRouter);
+
+// Served under /api/ (not at the site root) because this process never
+// serves the SPA's static files - nginx does, from frontend/dist (see
+// deploy/nginx/snowpine.conf) - so a root-level /sitemap.xml route here
+// would never actually be reached in production. robots.txt declares
+// this location explicitly via a Sitemap: directive, which search
+// engines honor regardless of path. Generated from live product data on
+// every request rather than at build time, so it's never stale - cheap
+// enough at this catalog size (dozens, not thousands, of products) to
+// not need caching.
+app.get("/api/sitemap.xml", async (req, res) => {
+  const baseUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+  const products = await listProducts();
+  const urls = [
+    { loc: baseUrl, changefreq: "daily", priority: "1.0" },
+    { loc: `${baseUrl}/shipping-returns`, changefreq: "monthly", priority: "0.3" },
+    ...products.map((p) => ({
+      loc: `${baseUrl}/product/${p.id}`,
+      changefreq: "weekly",
+      priority: "0.8",
+    })),
+  ];
+  const body = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...urls.map(
+      (u) => `  <url><loc>${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
+    ),
+    "</urlset>",
+  ].join("\n");
+  res.set("Content-Type", "application/xml").send(body);
+});
 
 app.post("/api/webhooks/razorpay", async (req, res) => {
   try {
