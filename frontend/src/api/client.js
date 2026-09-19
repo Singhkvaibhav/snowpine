@@ -126,3 +126,16 @@ export async function adminCreateProduct(token, fields) {
   if (!res.ok) throw new Error(data.error || "Failed to create product");
   return data;
 }
+
+export async function adminFetchLowStock(token) {
+  const res = await fetch("/api/admin/products/low-stock", { headers: { "x-admin-token": token } });
+  if (!res.ok) throw new Error("Failed to load low-stock products");
+  return res.json();
+}
+
+export async function adminFetchStockMovements(token, productId) {
+  const url = productId ? `/api/admin/stock-movements?productId=${productId}` : "/api/admin/stock-movements";
+  const res = await fetch(url, { headers: { "x-admin-token": token } });
+  if (!res.ok) throw new Error("Failed to load stock activity");
+  return res.json();
+}

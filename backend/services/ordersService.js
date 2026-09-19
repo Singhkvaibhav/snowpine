@@ -84,6 +84,10 @@ async function createOrder({ customerName, customerEmail, customerPhone, shippin
         [order.id, product.id, quantity, product.price_inr, product.gst_rate]
       );
       await tx("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [quantity, product.id]);
+      await tx("INSERT INTO stock_movements (product_id, delta, reason) VALUES ($1, $2, 'order_placed')", [
+        product.id,
+        -quantity,
+      ]);
     }
 
     return order;
@@ -100,6 +104,10 @@ async function releaseOrder(orderId) {
     const { rows: items } = await tx("SELECT product_id, quantity FROM order_items WHERE order_id = $1", [orderId]);
     for (const { product_id, quantity } of items) {
       await tx("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2", [quantity, product_id]);
+      await tx("INSERT INTO stock_movements (product_id, delta, reason) VALUES ($1, $2, 'order_released')", [
+        product_id,
+        quantity,
+      ]);
     }
     await tx("DELETE FROM orders WHERE id = $1", [orderId]);
   });

@@ -2,7 +2,14 @@ const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const { adminLimiter } = require("../middleware/rateLimit");
 const { listOrders, updateOrderStatus, OrderError } = require("../services/ordersService");
-const { listProducts, createProduct, updateProduct, ProductError } = require("../services/productsService");
+const {
+  listProducts,
+  createProduct,
+  updateProduct,
+  getLowStockProducts,
+  getStockMovements,
+  ProductError,
+} = require("../services/productsService");
 
 const router = express.Router();
 router.use(adminLimiter, adminAuth);
@@ -23,6 +30,19 @@ router.patch("/orders/:id/status", async (req, res) => {
 
 router.get("/products", async (req, res) => {
   res.json(await listProducts());
+});
+
+// Registered before /products/:id-shaped routes would need to be (none
+// currently exist for GET, but keeping this first avoids the classic
+// Express trap where a later wildcard route captures a literal path
+// first).
+router.get("/products/low-stock", async (req, res) => {
+  res.json(await getLowStockProducts());
+});
+
+router.get("/stock-movements", async (req, res) => {
+  const productId = req.query.productId ? Number(req.query.productId) : null;
+  res.json(await getStockMovements(productId));
 });
 
 router.post("/products", async (req, res) => {

@@ -11,17 +11,26 @@ const NEW_PRODUCT_DEFAULTS = {
   price_inr: "",
   stock_quantity: "0",
   gst_rate: "0.18",
+  reorder_point: "5",
 };
 
 function EditableRow({ product, onSave }) {
   const [price, setPrice] = useState(product.price_inr);
   const [stock, setStock] = useState(product.stock_quantity);
+  const [reorderPoint, setReorderPoint] = useState(product.reorder_point);
   const [saving, setSaving] = useState(false);
-  const dirty = String(price) !== String(product.price_inr) || String(stock) !== String(product.stock_quantity);
+  const lowStock = Number(product.stock_quantity) <= Number(product.reorder_point);
+  const dirty =
+    String(price) !== String(product.price_inr) ||
+    String(stock) !== String(product.stock_quantity) ||
+    String(reorderPoint) !== String(product.reorder_point);
 
   return (
-    <tr>
-      <td>{product.name}</td>
+    <tr style={lowStock ? { background: "#fff4e5" } : undefined}>
+      <td>
+        {product.name}
+        {lowStock && <span className="stock-badge" style={{ display: "block" }}>Low stock</span>}
+      </td>
       <td className="muted">{product.category}</td>
       <td>
         <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={{ width: "6rem" }} />
@@ -30,13 +39,20 @@ function EditableRow({ product, onSave }) {
         <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} style={{ width: "4rem" }} />
       </td>
       <td>
+        <input type="number" min="0" value={reorderPoint} onChange={(e) => setReorderPoint(e.target.value)} style={{ width: "4rem" }} />
+      </td>
+      <td>
         <button
           className="btn"
           disabled={!dirty || saving}
           onClick={async () => {
             setSaving(true);
             try {
-              await onSave(product.id, { price_inr: Number(price), stock_quantity: Number(stock) });
+              await onSave(product.id, {
+                price_inr: Number(price),
+                stock_quantity: Number(stock),
+                reorder_point: Number(reorderPoint),
+              });
             } finally {
               setSaving(false);
             }
@@ -116,6 +132,7 @@ export default function AdminProducts() {
         price_inr: Number(newProduct.price_inr),
         stock_quantity: Number(newProduct.stock_quantity),
         gst_rate: Number(newProduct.gst_rate),
+        reorder_point: Number(newProduct.reorder_point),
       });
       setProducts((prev) => [created, ...prev]);
       setNewProduct(NEW_PRODUCT_DEFAULTS);
@@ -126,10 +143,19 @@ export default function AdminProducts() {
     }
   }
 
+  const lowStockCount = products ? products.filter((p) => p.stock_quantity <= p.reorder_point).length : 0;
+
   return (
     <div>
       <h2>Products</h2>
-      <p className="muted"><Link to="/admin">View orders</Link></p>
+      <p className="muted">
+        <Link to="/admin">View orders</Link> · <Link to="/admin/stock-activity">Stock activity</Link>
+      </p>
+      {lowStockCount > 0 && (
+        <p className="error-text">
+          {lowStockCount} product{lowStockCount === 1 ? "" : "s"} at or below its reorder point - highlighted below.
+        </p>
+      )}
       {error && <p className="error-text">{error}</p>}
 
       {!products ? (
@@ -143,6 +169,7 @@ export default function AdminProducts() {
                 <th>Category</th>
                 <th>Price (₹)</th>
                 <th>Stock</th>
+                <th>Reorder at</th>
                 <th></th>
               </tr>
             </thead>
@@ -180,6 +207,10 @@ export default function AdminProducts() {
         <label>
           Stock quantity
           <input type="number" min="0" value={newProduct.stock_quantity} onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: e.target.value })} />
+        </label>
+        <label>
+          Reorder point (flag as low stock at or below this)
+          <input type="number" min="0" value={newProduct.reorder_point} onChange={(e) => setNewProduct({ ...newProduct, reorder_point: e.target.value })} />
         </label>
         <label>
           GST rate (e.g. 0.18 for 18%, 0.05 for 5%)

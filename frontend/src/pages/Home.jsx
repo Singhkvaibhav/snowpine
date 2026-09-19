@@ -33,29 +33,44 @@ export default function Home() {
 
   return (
     <div>
-      <p className="muted">Nordic and European products, delivered in India.</p>
+      <section className="hero">
+        <h1>Nordic craftsmanship, delivered to your door</h1>
+        <p>Curated baby gear, home design, and skincare from Sweden, Finland, Denmark, and Norway - authentic, and ready to ship across India.</p>
+        <div className="hero-badges">
+          <span className="hero-badge">Curated from trusted Nordic brands</span>
+          <span className="hero-badge">Duty and GST included in every price</span>
+          <span className="hero-badge">Ships across India</span>
+        </div>
+      </section>
 
       {error && <p className="error-text">{error}</p>}
 
-      <input
-        type="search"
-        placeholder="Search products..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: "100%", maxWidth: 320, marginBottom: "1rem", display: "block" }}
-      />
+      <div className="toolbar">
+        <div className="search-field">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search products..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-      <nav className="category-nav">
-        {categories.map((c) => (
-          <button
-            key={c}
-            className={`category-pill ${activeCategory === c ? "active" : ""}`}
-            onClick={() => setActiveCategory(c)}
-          >
-            {c}
-          </button>
-        ))}
-      </nav>
+        <nav className="category-nav">
+          {categories.map((c) => (
+            <button
+              key={c}
+              className={`category-pill ${activeCategory === c ? "active" : ""}`}
+              onClick={() => setActiveCategory(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {products.length > 0 && visible.length === 0 && (
         <p className="muted">No products match your search.</p>

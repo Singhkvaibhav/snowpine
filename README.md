@@ -47,12 +47,14 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 79 tests covering: order creation/validation, GST
+bug a mock would hide. 90 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
-sweep, admin auth/product management, rate limiting, and customer
-accounts (signup/login/logout, session-based order access, guest-order
-retroactive linking, and that one customer can't view another's order).
+sweep, admin auth/product management, rate limiting, customer accounts
+(signup/login/logout, session-based order access, guest-order retroactive
+linking, and that one customer can't view another's order), and the
+stock-movement audit trail (correct deltas for order/release/admin-edit
+paths, and the low-stock list updating as stock crosses the threshold).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
@@ -118,12 +120,34 @@ frontend/
     cart/         CartContext - localStorage-backed cart state
     auth/         AuthContext - cookie-session-backed login state
     api/          backend API client
-    styles.css    design system (Nordic-inspired palette)
+    styles.css    design system (icy winter palette, Fraunces + Inter)
     *.test.jsx    Vitest + React Testing Library, alongside the files
                   they test (see Testing)
 ```
 
 ## Status
+
+**Design** - a real visual identity (Fraunces serif for headings/brand
+paired with Inter for body text, an icy winter palette actually fitting
+the "Snowpine" name, a hero section, unified search+category toolbar,
+consistent card heights via line-clamped names) replacing the earlier
+bare-bones styling. Deliberately kept the placeholder product-thumb logic
+in `ProductThumb.jsx` completely unchanged (same inline `style.background`
+per category, same tests passing) and added visual polish (a sheen
+overlay, a decorative snowflake watermark in the hero) purely through
+CSS, specifically so the tests asserting on the exact computed background
+color didn't need to know or care about the redesign.
+
+**Inventory management** - `stock_movements` audit log plus a per-product
+`reorder_point`. Every real stock change (an order placed, an expired
+reservation released back, an admin's manual correction) is logged with
+its actual delta and reason, not just silently applied - `/admin/stock-
+activity` shows the full history, and low-stock products are highlighted
+directly in `/admin/products`. Deliberately did NOT build sales
+forecasting alongside this: the store has zero sales history pre-launch,
+and fitting a forecasting model to no data is worse than not having one -
+simple methods (moving averages, etc.) become worth building once a few
+months of real orders exist to learn from.
 
 **Customer accounts** - `customers`/`customer_sessions` tables, cookie-
 based sessions (DB-backed, not a stateless signed token - logout is a

@@ -14,6 +14,7 @@ import Terms from "./pages/legal/Terms.jsx";
 import Privacy from "./pages/legal/Privacy.jsx";
 import AdminOrders from "./pages/admin/AdminOrders.jsx";
 import AdminProducts from "./pages/admin/AdminProducts.jsx";
+import AdminStockActivity from "./pages/admin/AdminStockActivity.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import "./styles.css";
 
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/admin" element={<AdminOrders />} />
               <Route path="/admin/products" element={<AdminProducts />} />
+              <Route path="/admin/stock-activity" element={<AdminStockActivity />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Footer />

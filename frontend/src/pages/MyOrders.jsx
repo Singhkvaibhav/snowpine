@@ -31,9 +31,14 @@ export default function MyOrders() {
       {!orders ? (
         <p className="muted">Loading...</p>
       ) : orders.length === 0 ? (
-        <div>
-          <p className="muted">You haven't placed any orders yet.</p>
-          <Link to="/">Start shopping</Link>
+        <div className="empty-state">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3h18v18H3z" opacity="0" />
+            <rect x="3" y="7" width="18" height="14" rx="2" />
+            <path d="M8 7V5a4 4 0 0 1 8 0v2" />
+          </svg>
+          <p>You haven't placed any orders yet.</p>
+          <Link to="/"><button className="btn">Start shopping</button></Link>
         </div>
       ) : (
         <div className="table-scroll">
