@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { adminFetchOrders, adminUpdateOrderStatus } from "../../api/client";
+import {
+  adminFetchOrders,
+  adminUpdateOrderStatus,
+  adminRequestReturn,
+  adminMarkReturned,
+  adminRefundOrder,
+} from "../../api/client";
 
 const STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const TOKEN_KEY = "snowpine_admin_token";
@@ -74,6 +80,7 @@ export default function AdminOrders() {
                 <th>Address</th>
                 <th>Total</th>
                 <th>Status</th>
+                <th>Returns</th>
               </tr>
             </thead>
             <tbody>
@@ -87,6 +94,7 @@ export default function AdminOrders() {
                   <td>
                     <select
                       value={o.status}
+                      disabled={["return_requested", "returned", "refunded"].includes(o.status)}
                       onChange={async (e) => {
                         const status = e.target.value;
                         try {
@@ -100,7 +108,13 @@ export default function AdminOrders() {
                       {STATUSES.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
+                      {["return_requested", "returned", "refunded"].includes(o.status) && (
+                        <option value={o.status}>{o.status}</option>
+                      )}
                     </select>
+                  </td>
+                  <td>
+                    <ReturnAction order={o} token={token} onChange={(updated) => setOrders((prev) => prev.map((x) => (x.id === o.id ? updated : x)))} onError={setError} />
                   </td>
                 </tr>
               ))}
@@ -110,4 +124,55 @@ export default function AdminOrders() {
       )}
     </div>
   );
+}
+
+// Returns/refunds are a state machine (see ordersService.js), so only one
+// action is ever valid at a time - the button shown here always maps
+// directly to the order's current status rather than offering every
+// action and letting the server reject the invalid ones.
+function ReturnAction({ order, token, onChange, onError }) {
+  const [busy, setBusy] = useState(false);
+
+  async function run(action) {
+    setBusy(true);
+    try {
+      const updated = await action(token, order.id);
+      onChange(updated);
+    } catch (err) {
+      onError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (order.status === "delivered") {
+    return (
+      <button className="btn btn-secondary" disabled={busy} onClick={() => run(adminRequestReturn)}>
+        Request return
+      </button>
+    );
+  }
+  if (order.status === "return_requested") {
+    return (
+      <button className="btn btn-secondary" disabled={busy} onClick={() => run(adminMarkReturned)}>
+        Mark restocked
+      </button>
+    );
+  }
+  if (order.status === "returned") {
+    return (
+      <button className="btn btn-secondary" disabled={busy} onClick={() => run(adminRefundOrder)}>
+        Refund
+      </button>
+    );
+  }
+  if (order.status === "refunded") {
+    return (
+      <span className="muted">
+        Refunded ₹{Number(order.refunded_amount_inr).toLocaleString("en-IN")}
+        {order.refunded_at && ` on ${new Date(order.refunded_at).toLocaleDateString("en-IN")}`}
+      </span>
+    );
+  }
+  return <span className="muted">-</span>;
 }

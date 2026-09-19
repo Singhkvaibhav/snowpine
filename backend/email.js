@@ -7,7 +7,11 @@ const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
-const FROM_ADDRESS = process.env.SMTP_FROM || "orders@snowpine.example";
+// Resend's shared test sender - works with no domain verification, but
+// can only deliver to the email address the Resend account was signed up
+// with. Swap in a verified custom domain's address via SMTP_FROM once one
+// exists to send to real customers.
+const FROM_ADDRESS = process.env.SMTP_FROM || "onboarding@resend.dev";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
@@ -95,6 +99,19 @@ async function sendShippedNotification(order) {
   await sendMail({ to: order.customer_email, subject: `Snowpine order #${order.id} has shipped`, text });
 }
 
+async function sendRefundConfirmation(order) {
+  const text = [
+    `Hi ${order.customer_name},`,
+    "",
+    `Your return for Snowpine order #${order.id} has been processed and refunded.`,
+    "",
+    `Refund amount: ${inr(order.refunded_amount_inr)}`,
+    "",
+    "It can take a few business days to reflect on your original payment method.",
+  ].join("\n");
+  await sendMail({ to: order.customer_email, subject: `Snowpine order #${order.id} refunded`, text });
+}
+
 // Fires once per crossing into low stock (see productsService's
 // maybeSendLowStockAlert), not on every order against an already-low
 // product - otherwise a slow-moving low-stock item would spam this on
@@ -112,4 +129,11 @@ async function sendLowStockAlert(product) {
   await sendMail({ to: ADMIN_EMAIL, subject: `Snowpine: low stock - ${product.name}`, text });
 }
 
-module.exports = { isConfigured, sendMail, sendOrderConfirmation, sendShippedNotification, sendLowStockAlert };
+module.exports = {
+  isConfigured,
+  sendMail,
+  sendOrderConfirmation,
+  sendShippedNotification,
+  sendRefundConfirmation,
+  sendLowStockAlert,
+};

@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 101 tests covering: order creation/validation, GST
+bug a mock would hide. 108 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -57,9 +57,12 @@ stock-movement audit trail (correct deltas for order/release/admin-edit
 paths, and the low-stock list updating as stock crosses the threshold),
 the low-stock email alert (fires exactly on the crossing into low stock,
 not on every sale of an already-low item, and not on unrelated edits or
-restocks), and the sales overview (revenue counted only from
+restocks), the sales overview (revenue counted only from
 paid/shipped/delivered orders, top-products aggregation across multiple
-orders).
+orders), and the returns/refunds state machine (each of the three
+transitions rejects being called out of order, restocking uses the real
+audit trail, and the refund path calls a mocked Razorpay refund with the
+correct payment id and amount).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
@@ -192,6 +195,33 @@ status, and top-selling products by units/revenue. Descriptive only, on
 purpose (see above) - counts paid/shipped/delivered orders as revenue,
 explicitly excluding pending (may never be paid) and cancelled (reversed)
 orders, which would otherwise overstate it.
+
+**Returns & refunds** - a real state machine, not a value bolted onto the
+generic status PATCH: `delivered → return_requested → returned →
+refunded`, each transition its own admin action (`POST /admin/orders/:id/
+return|restock|refund`) that rejects being called out of order rather
+than accepting any status a caller hands in. `returned` restocks every
+line item and logs it to the same `stock_movements` audit trail as every
+other stock change (tagged `return_restocked`, distinct from an
+`admin_adjustment`, so reconstructing why a product is at its current
+quantity stays accurate). `refunded` calls Razorpay's refund API against
+the order's real `razorpay_payment_id` for the full amount and records
+the resulting `refund_id`/`refunded_amount_inr`/`refunded_at`; a demo/dev
+order that never went through real Razorpay payment still moves to
+`refunded` for bookkeeping, just without a real refund call, matching the
+pluggable pattern the rest of the payment/email integrations already use.
+Sends a refund-confirmation email through the existing `email.js`
+pipeline. Verified end-to-end against the running dev API and visually in
+the admin UI (`/admin`'s new "Returns" column swaps between "Request
+return"/"Mark restocked"/"Refund" based on the order's current status).
+
+**Email delivery** - `email.js` was already pluggable (real SMTP via
+nodemailer when configured, console-log fallback otherwise); what was
+missing was an actual provider. Defaults to Resend's shared
+`onboarding@resend.dev` test sender when `SMTP_FROM` is unset, which
+needs no domain verification but can only deliver to the Resend account's
+own signup address - swap in a verified custom domain's address once one
+exists to email real customers.
 
 **Customer accounts** - `customers`/`customer_sessions` tables, cookie-
 based sessions (DB-backed, not a stateless signed token - logout is a

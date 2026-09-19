@@ -1,7 +1,15 @@
 const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const { adminLimiter } = require("../middleware/rateLimit");
-const { listOrders, updateOrderStatus, getSalesOverview, OrderError } = require("../services/ordersService");
+const {
+  listOrders,
+  updateOrderStatus,
+  requestReturn,
+  markReturned,
+  refundOrder,
+  getSalesOverview,
+  OrderError,
+} = require("../services/ordersService");
 const {
   listProducts,
   createProduct,
@@ -26,6 +34,33 @@ router.patch("/orders/:id/status", async (req, res) => {
   try {
     const order = await updateOrderStatus(req.params.id, req.body.status);
     res.json(order);
+  } catch (e) {
+    if (e instanceof OrderError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+});
+
+router.post("/orders/:id/return", async (req, res) => {
+  try {
+    res.json(await requestReturn(req.params.id));
+  } catch (e) {
+    if (e instanceof OrderError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+});
+
+router.post("/orders/:id/restock", async (req, res) => {
+  try {
+    res.json(await markReturned(req.params.id));
+  } catch (e) {
+    if (e instanceof OrderError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
+});
+
+router.post("/orders/:id/refund", async (req, res) => {
+  try {
+    res.json(await refundOrder(req.params.id));
   } catch (e) {
     if (e instanceof OrderError) return res.status(e.status).json({ error: e.message });
     throw e;

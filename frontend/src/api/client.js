@@ -105,6 +105,20 @@ export async function adminUpdateOrderStatus(token, orderId, status) {
   return data;
 }
 
+async function adminOrderAction(token, orderId, action) {
+  const res = await fetch(`/api/admin/orders/${orderId}/${action}`, {
+    method: "POST",
+    headers: { "x-admin-token": token },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Failed to ${action} order`);
+  return data;
+}
+
+export const adminRequestReturn = (token, orderId) => adminOrderAction(token, orderId, "return");
+export const adminMarkReturned = (token, orderId) => adminOrderAction(token, orderId, "restock");
+export const adminRefundOrder = (token, orderId) => adminOrderAction(token, orderId, "refund");
+
 export async function adminFetchProducts(token) {
   const res = await fetch("/api/admin/products", { headers: { "x-admin-token": token } });
   if (!res.ok) throw new Error(res.status === 401 ? "Invalid admin token" : "Failed to load products");

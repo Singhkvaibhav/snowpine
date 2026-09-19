@@ -3,11 +3,12 @@ const { withTransaction, query } = require("../db");
 const {
   isConfigured,
   createRazorpayOrder,
+  createRefund,
   verifySignature,
   verifyWebhookSignature,
   keyId,
 } = require("../razorpay");
-const { sendOrderConfirmation, sendShippedNotification } = require("../email");
+const { sendOrderConfirmation, sendShippedNotification, sendRefundConfirmation } = require("../email");
 const { maybeSendLowStockAlert } = require("./productsService");
 
 const VALID_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
@@ -297,6 +298,96 @@ async function updateOrderStatus(id, status) {
   return rows[0];
 }
 
+// Returns/refunds get their own explicit state machine (delivered ->
+// return_requested -> returned -> refunded) rather than being folded into
+// updateOrderStatus - restocking and moving real money back through
+// Razorpay are consequential enough to guard with their own preconditions
+// instead of accepting any status value a caller hands in.
+async function requestReturn(id) {
+  const { rows } = await query(
+    "UPDATE orders SET status = 'return_requested' WHERE id = $1 AND status = 'delivered' RETURNING *",
+    [id]
+  );
+  if (!rows[0]) {
+    const { rows: existing } = await query("SELECT status FROM orders WHERE id = $1", [id]);
+    if (!existing[0]) throw new OrderError("Order not found", 404);
+    throw new OrderError(`Cannot request a return for an order with status "${existing[0].status}"`);
+  }
+  return rows[0];
+}
+
+// Puts the returned stock back where a customer's order took it from -
+// same stock_movements audit trail as every other stock change, tagged
+// distinctly ('return_restocked') so it's not confused with a fresh
+// admin_adjustment when reconstructing why a product is at its current
+// quantity.
+async function markReturned(id) {
+  return withTransaction(async (tx) => {
+    const { rows: orderRows } = await tx(
+      "SELECT * FROM orders WHERE id = $1 AND status = 'return_requested' FOR UPDATE",
+      [id]
+    );
+    const order = orderRows[0];
+    if (!order) {
+      const { rows: existing } = await tx("SELECT status FROM orders WHERE id = $1", [id]);
+      if (!existing[0]) throw new OrderError("Order not found", 404);
+      throw new OrderError(`Cannot restock an order with status "${existing[0].status}" - request a return first`);
+    }
+
+    const { rows: items } = await tx("SELECT product_id, quantity FROM order_items WHERE order_id = $1", [id]);
+    for (const { product_id, quantity } of items) {
+      await tx("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2", [quantity, product_id]);
+      await tx("INSERT INTO stock_movements (product_id, delta, reason) VALUES ($1, $2, 'return_restocked')", [
+        product_id,
+        quantity,
+      ]);
+    }
+
+    const { rows: updated } = await tx("UPDATE orders SET status = 'returned' WHERE id = $1 RETURNING *", [id]);
+    return updated[0];
+  });
+}
+
+// Only reachable once markReturned has already restocked the items - a
+// refund without a preceding return would give money back for goods
+// still marked as sold. Requires a real razorpay_payment_id (the order
+// was actually paid through Razorpay); a demo/dev order that never went
+// through real payment still moves to "refunded" for bookkeeping, just
+// without calling out to Razorpay for it.
+async function refundOrder(id) {
+  const { rows } = await query("SELECT * FROM orders WHERE id = $1 AND status = 'returned'", [id]);
+  const order = rows[0];
+  if (!order) {
+    const { rows: existing } = await query("SELECT status FROM orders WHERE id = $1", [id]);
+    if (!existing[0]) throw new OrderError("Order not found", 404);
+    throw new OrderError(`Cannot refund an order with status "${existing[0].status}" - mark it returned first`);
+  }
+
+  let refundId = null;
+  if (isConfigured() && order.razorpay_payment_id) {
+    try {
+      const refund = await createRefund(order.razorpay_payment_id, order.total_inr);
+      refundId = refund?.id ?? null;
+    } catch (e) {
+      throw new OrderError("Refund could not be processed by the payment provider. Please try again shortly.", 502);
+    }
+  }
+
+  const { rows: updated } = await query(
+    `UPDATE orders SET status = 'refunded', refund_id = $1, refunded_amount_inr = $2, refunded_at = now()
+     WHERE id = $3 RETURNING *`,
+    [refundId, order.total_inr, id]
+  );
+
+  try {
+    await sendRefundConfirmation(await getOrder(id));
+  } catch (e) {
+    console.error(`Failed to send refund confirmation email for order ${id}:`, e);
+  }
+
+  return updated[0];
+}
+
 // price_inr/unit_price_inr are GST-inclusive MRP (standard Indian retail
 // convention) - the taxable value and GST amount are derived by working
 // backward from that, not added on top.
@@ -347,6 +438,9 @@ module.exports = {
   handleWebhookEvent,
   listOrders,
   updateOrderStatus,
+  requestReturn,
+  markReturned,
+  refundOrder,
   getSalesOverview,
   sweepExpiredOrders,
   getOrder,

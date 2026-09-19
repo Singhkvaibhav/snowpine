@@ -39,6 +39,16 @@ async function createRazorpayOrder(amountInr, receiptId) {
   return order;
 }
 
+// Full refund of a captured payment. Returns null when Razorpay isn't
+// configured (e.g. local dev/demo orders that were never really paid
+// through Razorpay in the first place) - callers still mark the order
+// refunded in that case, just without a real refund_id attached.
+async function createRefund(paymentId, amountInr) {
+  const rp = getClient();
+  if (!rp) return null;
+  return rp.payments.refund(paymentId, { amount: Math.round(amountInr * 100) });
+}
+
 // Per Razorpay's documented client-side checkout flow: the payment is
 // authentic iff HMAC-SHA256(razorpay_order_id + "|" + razorpay_payment_id,
 // key_secret) matches the signature Razorpay's checkout.js returned to
@@ -68,6 +78,7 @@ module.exports = {
   isConfigured,
   isWebhookConfigured,
   createRazorpayOrder,
+  createRefund,
   verifySignature,
   verifyWebhookSignature,
   keyId: KEY_ID,
