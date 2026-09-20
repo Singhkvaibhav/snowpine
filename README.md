@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 125 tests covering: order creation/validation, GST
+bug a mock would hide. 131 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -62,11 +62,14 @@ paid/shipped/delivered orders, top-products aggregation across multiple
 orders), the returns/refunds state machine (each of the three
 transitions rejects being called out of order, restocking uses the real
 audit trail, and the refund path calls a mocked Razorpay refund with the
-correct payment id and amount), and discount codes (percent/flat math,
+correct payment id and amount), discount codes (percent/flat math,
 minimum-order and expiry/deactivation rejections, `max_uses` enforced
 across separate concurrent-style requests without over-redeeming, a
 failed order never consuming a use, and the GST breakdown reflecting the
-discount pro-rata rather than the pre-discount price).
+discount pro-rata rather than the pre-discount price), and abandoned-cart
+reminders (fires once inside the delay-to-expiry window, never before the
+delay or after expiry, never for an order with nothing to click through
+to, never twice, and never for a paid order).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
@@ -292,6 +295,24 @@ status, and top-selling products by units/revenue. Descriptive only, on
 purpose (see above) - counts paid/shipped/delivered orders as revenue,
 explicitly excluding pending (may never be paid) and cancelled (reversed)
 orders, which would otherwise overstate it.
+
+**Abandoned-cart recovery email** - rides the same in-process 5-minute
+sweep that already released expired reservations (`server.js`), just
+looking at a different time window: a "pending" order older than
+`ABANDONED_CART_EMAIL_DELAY_MINUTES` (default 15) but still inside its
+`RESERVATION_TTL_MINUTES` window (default 30) gets a one-time reminder
+email with a link back to the SAME order - not a fresh checkout, so it
+resumes the same Razorpay order and the same reserved stock. Guarded
+three ways: `abandoned_email_sent_at IS NULL` caps it to exactly one
+reminder ever per order (a failed send leaves this NULL so the next tick
+retries, bounded by however many ticks fit before expiry); excludes any
+order already past its own expiry (about to be, or already, released by
+the other half of the same sweep); and excludes any order with no
+`razorpay_order_id` (Razorpay unconfigured, or the attach step hasn't run
+yet) since there'd be nothing for the customer to click through to.
+Verified live against the running dev API: with Razorpay unconfigured
+locally, an aged order correctly gets skipped rather than emailing a
+broken link.
 
 **Discount codes** (`/admin/discount-codes`) - percent-off or flat-₹-off
 codes with an optional minimum order value, expiry date, and `max_uses`

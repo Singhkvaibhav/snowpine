@@ -118,6 +118,36 @@ async function sendRefundConfirmation(order) {
   await sendMail({ to: order.customer_email, subject: `Snowpine order #${order.id} refunded`, text });
 }
 
+// Fires once per pending order that's sat unpaid past a delay (see
+// ordersService.sendAbandonedCartReminders) - a nudge back with a link
+// that resumes the SAME order (same reserved stock, same Razorpay order),
+// not a new checkout. Only makes sense while the reservation is still
+// live and there's an actual payment to complete, which the caller's
+// query already guarantees before this ever runs.
+function renderAbandonedCartReminder(order) {
+  const lines = order.items.map((i) => `  ${i.name} x${i.quantity}`);
+  const trackingUrl = `${FRONTEND_URL}/order/${order.id}?token=${order.access_token}`;
+  const text = [
+    `Hi ${order.customer_name},`,
+    "",
+    "You started an order with Snowpine but didn't finish checking out:",
+    "",
+    ...lines,
+    "",
+    `Total: ${inr(order.total_inr)}`,
+    "",
+    `Complete your payment before the reservation expires: ${trackingUrl}`,
+    "",
+    "If the reservation expires first, these items go back into general stock and you'll need to place a new order.",
+  ].join("\n");
+  return { subject: "You left something in your cart - Snowpine", text };
+}
+
+async function sendAbandonedCartReminder(order) {
+  const { subject, text } = renderAbandonedCartReminder(order);
+  await sendMail({ to: order.customer_email, subject, text });
+}
+
 // Fires once per crossing into low stock (see productsService's
 // maybeSendLowStockAlert), not on every order against an already-low
 // product - otherwise a slow-moving low-stock item would spam this on
@@ -141,5 +171,6 @@ module.exports = {
   sendOrderConfirmation,
   sendShippedNotification,
   sendRefundConfirmation,
+  sendAbandonedCartReminder,
   sendLowStockAlert,
 };

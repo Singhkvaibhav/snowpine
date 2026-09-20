@@ -8,12 +8,25 @@ const {
   verifyWebhookSignature,
   keyId,
 } = require("../razorpay");
-const { sendOrderConfirmation, sendShippedNotification, sendRefundConfirmation } = require("../email");
+const {
+  sendOrderConfirmation,
+  sendShippedNotification,
+  sendRefundConfirmation,
+  sendAbandonedCartReminder,
+} = require("../email");
 const { maybeSendLowStockAlert } = require("./productsService");
 const { redeemDiscountCode, DiscountError } = require("./discountService");
 
 const VALID_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const RESERVATION_TTL_MINUTES = Number(process.env.RESERVATION_TTL_MINUTES) || 30;
+// Deliberately independent of RESERVATION_TTL_MINUTES rather than derived
+// from it (e.g. "half the TTL") - an operator may want a longer or
+// shorter TTL without that also silently retuning when reminders fire.
+// Should stay comfortably below RESERVATION_TTL_MINUTES so there's real
+// time left to act on the email; not enforced in code since a shorter
+// window (reminder fires, then expiry sweeps moments later) degrades
+// gracefully rather than breaking anything.
+const ABANDONED_CART_EMAIL_DELAY_MINUTES = Number(process.env.ABANDONED_CART_EMAIL_DELAY_MINUTES) || 15;
 
 // Structural sanity checks, not full validation - client-side type="email"/
 // pattern= on the checkout form is trivially bypassed by calling this API
@@ -173,6 +186,41 @@ async function sweepExpiredOrders() {
     await releaseOrder(id);
   }
   return rows.length;
+}
+
+// Nudges a customer back to finish paying for an order they abandoned
+// mid-checkout, while their reservation is still live - `expires_at >
+// now()` excludes anything sweepExpiredOrders is about to (or already
+// did) release, and `razorpay_order_id IS NOT NULL` excludes orders with
+// nothing actionable to click (Razorpay unconfigured, or the order
+// creation transaction succeeded but attachRazorpayOrder hadn't run yet).
+// `abandoned_email_sent_at IS NULL` caps this to exactly one reminder per
+// order, ever - a failed send leaves it NULL so the next sweep tick
+// retries, bounded by how many ticks fit before expiry.
+async function sendAbandonedCartReminders() {
+  const { rows } = await query(
+    `SELECT id FROM orders
+     WHERE status = 'pending'
+       AND abandoned_email_sent_at IS NULL
+       AND razorpay_order_id IS NOT NULL
+       AND expires_at > now()
+       AND created_at < now() - ($1 || ' minutes')::interval`,
+    [ABANDONED_CART_EMAIL_DELAY_MINUTES]
+  );
+
+  let sent = 0;
+  for (const { id } of rows) {
+    const order = await getOrder(id);
+    try {
+      await sendAbandonedCartReminder(order);
+    } catch (e) {
+      console.error(`Failed to send abandoned cart reminder for order ${id}:`, e);
+      continue;
+    }
+    await query("UPDATE orders SET abandoned_email_sent_at = now() WHERE id = $1", [id]);
+    sent++;
+  }
+  return sent;
 }
 
 // Runs after the order/stock transaction commits, not inside it - this is
@@ -481,6 +529,7 @@ module.exports = {
   refundOrder,
   getSalesOverview,
   sweepExpiredOrders,
+  sendAbandonedCartReminders,
   getOrder,
   getOrderForCustomer,
   listOrdersForCustomer,

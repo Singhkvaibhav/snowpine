@@ -9,7 +9,7 @@ const productsRouter = require("./routes/products");
 const ordersRouter = require("./routes/orders");
 const adminRouter = require("./routes/admin");
 const authRouter = require("./routes/auth");
-const { handleWebhookEvent, sweepExpiredOrders, OrderError } = require("./services/ordersService");
+const { handleWebhookEvent, sweepExpiredOrders, sendAbandonedCartReminders, OrderError } = require("./services/ordersService");
 const { keyId: razorpayKeyId } = require("./razorpay");
 const { assertValidConfig } = require("./configCheck");
 const { listProducts } = require("./services/productsService");
@@ -117,9 +117,13 @@ if (require.main === module) {
       // No queue/worker process exists at this scale - an in-process
       // interval is enough to release abandoned checkout reservations
       // periodically. Logs and continues on failure rather than crashing
-      // the API over a transient DB hiccup.
+      // the API over a transient DB hiccup. Abandoned-cart reminders ride
+      // the same interval - both are "look for pending orders in a
+      // particular time window" sweeps, just with different windows and
+      // different actions.
       setInterval(() => {
         sweepExpiredOrders().catch((e) => console.error("sweepExpiredOrders failed:", e));
+        sendAbandonedCartReminders().catch((e) => console.error("sendAbandonedCartReminders failed:", e));
       }, SWEEP_INTERVAL_MS);
     })
     .catch((e) => {
