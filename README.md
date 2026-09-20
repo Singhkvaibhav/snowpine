@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 131 tests covering: order creation/validation, GST
+bug a mock would hide. 139 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -66,26 +66,32 @@ correct payment id and amount), discount codes (percent/flat math,
 minimum-order and expiry/deactivation rejections, `max_uses` enforced
 across separate concurrent-style requests without over-redeeming, a
 failed order never consuming a use, and the GST breakdown reflecting the
-discount pro-rata rather than the pre-discount price), and abandoned-cart
+discount pro-rata rather than the pre-discount price), abandoned-cart
 reminders (fires once inside the delay-to-expiry window, never before the
 delay or after expiry, never for an order with nothing to click through
-to, never twice, and never for a paid order).
+to, never twice, and never for a paid order), and the wishlist (requires
+login, idempotent add/remove, 404 on a nonexistent product, and one
+customer's saved items never leak into another's).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
 artifact from many isolated per-file module registries, not something
 the running server actually does).
 
-**Frontend** - Vitest + React Testing Library, 64 tests covering
+**Frontend** - Vitest + React Testing Library, 79 tests covering
 `CartContext` (the source of truth for what a customer is about to buy),
 `Home`'s search/category filtering, `ProductThumb`'s category-icon logic,
 `ProductDetail`'s quantity stepper/related-products/add-to-cart-with-
 quantity, `Cart`'s line/order totals and remove behavior, `usePageMeta`'s
 per-route title/description, `AuthContext`/`MyOrders` (login state,
-redirect-when-logged-out), and `OrderConfirmation`'s GST display,
-discount breakdown, and payment-retry flow (verified the retry reopens
-Razorpay on the *same* `razorpay_order_id`, not a new one - the exact
-behavior the double-reservation fix depends on).
+redirect-when-logged-out), `OrderConfirmation`'s GST display, discount
+breakdown, and payment-retry flow (verified the retry reopens Razorpay on
+the *same* `razorpay_order_id`, not a new one - the exact behavior the
+double-reservation fix depends on), and the wishlist (`WishlistContext`'s
+optimistic toggle reverting on a failed request, `WishlistButton`
+redirecting a logged-out click to `/login` instead of toggling and never
+triggering the surrounding product-card `<Link>`'s navigation, and
+`MyWishlist`'s empty/populated/out-of-stock states).
 
 A few worth calling out because they test actual bugs this project hit,
 not hypotheticals:
@@ -313,6 +319,25 @@ yet) since there'd be nothing for the customer to click through to.
 Verified live against the running dev API: with Razorpay unconfigured
 locally, an aged order correctly gets skipped rather than emailing a
 broken link.
+
+**Wishlist / save for later** (`/account/wishlist`) - tied to a customer
+account, not a guest-friendly `localStorage` list like the cart, since
+the entire point of a wishlist is that it's still there later, possibly
+on a different device - only a server-side record tied to a login
+actually supports that. A heart-icon toggle (`WishlistButton.jsx`)
+overlays every product thumbnail (grid cards, related products, the
+detail page's main image) plus a labeled "Save for later" variant next
+to the detail page's "Add to cart"; clicking it while logged out routes
+to `/login` instead of silently failing or toggling nothing.
+`WishlistContext` updates optimistically and reverts on a failed
+request, so the heart flips state immediately rather than waiting on a
+round trip. Add/remove are both idempotent (`ON CONFLICT DO NOTHING` /
+deleting a row that isn't there) since a heart-icon toggle can't cleanly
+distinguish "already saved" from a genuine double-click race, and
+neither case should surface as an error. Verified end-to-end against the
+running dev API and visually via Playwright: logged-out click redirects
+to login, a fresh signup + save renders the filled heart and lists the
+product on `/account/wishlist` with a working "Add to cart".
 
 **Discount codes** (`/admin/discount-codes`) - percent-off or flat-₹-off
 codes with an optional minimum order value, expiry date, and `max_uses`

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
 import { CartProvider, useCart } from "./cart/CartContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { WishlistProvider } from "./wishlist/WishlistContext";
 import Home from "./pages/Home.jsx";
 import ProductDetail from "./pages/ProductDetail.jsx";
 import Cart from "./pages/Cart.jsx";
@@ -9,6 +10,7 @@ import OrderConfirmation from "./pages/OrderConfirmation.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import MyOrders from "./pages/MyOrders.jsx";
+import MyWishlist from "./pages/MyWishlist.jsx";
 import ShippingReturns from "./pages/legal/ShippingReturns.jsx";
 import Terms from "./pages/legal/Terms.jsx";
 import Privacy from "./pages/legal/Privacy.jsx";
@@ -35,6 +37,7 @@ function Header() {
         {!loading && (
           customer ? (
             <>
+              <Link to="/account/wishlist">Wishlist</Link>
               <Link to="/account/orders">{customer.name}</Link>
               <button
                 className="btn-secondary btn"
@@ -71,6 +74,7 @@ function Footer() {
           <span className="site-footer-heading">Shop</span>
           <Link to="/">All products</Link>
           <Link to="/cart">Cart</Link>
+          <Link to="/account/wishlist">Wishlist</Link>
           <Link to="/account/orders">Your orders</Link>
         </div>
         <div className="site-footer-col">
@@ -92,6 +96,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <WishlistProvider>
         <CartProvider>
           <div className="layout">
             <Header />
@@ -104,6 +109,7 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/account/orders" element={<MyOrders />} />
+              <Route path="/account/wishlist" element={<MyWishlist />} />
               <Route path="/shipping-returns" element={<ShippingReturns />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -117,6 +123,7 @@ export default function App() {
             <Footer />
           </div>
         </CartProvider>
+        </WishlistProvider>
       </AuthProvider>
     </BrowserRouter>
   );

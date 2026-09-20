@@ -5,6 +5,8 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ProductDetail from "./ProductDetail";
 import { CartProvider } from "../cart/CartContext";
 import * as apiClient from "../api/client";
+import * as AuthContext from "../auth/AuthContext";
+import * as WishlistContext from "../wishlist/WishlistContext";
 
 const PRODUCT = {
   id: 1,
@@ -36,6 +38,16 @@ function renderPage(id = "1") {
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+  // The thumbnail and each related-product card render WishlistButton,
+  // which needs both hooks - logged-out by default, not the focus of
+  // these tests.
+  vi.spyOn(AuthContext, "useAuth").mockReturnValue({ customer: null, loading: false });
+  vi.spyOn(WishlistContext, "useWishlist").mockReturnValue({
+    items: [],
+    loading: false,
+    isSaved: () => false,
+    toggle: vi.fn(),
+  });
 });
 
 describe("ProductDetail", () => {

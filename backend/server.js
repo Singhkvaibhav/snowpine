@@ -9,6 +9,7 @@ const productsRouter = require("./routes/products");
 const ordersRouter = require("./routes/orders");
 const adminRouter = require("./routes/admin");
 const authRouter = require("./routes/auth");
+const wishlistRouter = require("./routes/wishlist");
 const { handleWebhookEvent, sweepExpiredOrders, sendAbandonedCartReminders, OrderError } = require("./services/ordersService");
 const { keyId: razorpayKeyId } = require("./razorpay");
 const { assertValidConfig } = require("./configCheck");
@@ -49,6 +50,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/wishlist", wishlistRouter);
 
 // Served under /api/ (not at the site root) because this process never
 // serves the SPA's static files - nginx does, from frontend/dist (see

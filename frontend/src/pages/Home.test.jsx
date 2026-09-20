@@ -1,10 +1,12 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Home from "./Home";
 import { CartProvider } from "../cart/CartContext";
 import * as apiClient from "../api/client";
+import * as AuthContext from "../auth/AuthContext";
+import * as WishlistContext from "../wishlist/WishlistContext";
 
 const PRODUCTS = [
   { id: 1, name: "Kånken Mini", description: "Compact backpack", origin_country: "Sweden", category: "Bags", price_inr: "5999.00", stock_quantity: 10 },
@@ -25,6 +27,17 @@ function renderHome() {
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+  // Home's product cards render WishlistButton, which needs both hooks -
+  // logged-out by default since none of these tests are about wishlist
+  // behavior specifically (see WishlistButton.test.jsx / MyWishlist.test.jsx
+  // for that).
+  vi.spyOn(AuthContext, "useAuth").mockReturnValue({ customer: null, loading: false });
+  vi.spyOn(WishlistContext, "useWishlist").mockReturnValue({
+    items: [],
+    loading: false,
+    isSaved: () => false,
+    toggle: vi.fn(),
+  });
 });
 
 describe("Home", () => {
@@ -103,8 +116,7 @@ describe("Home", () => {
     await screen.findByText("Moomin Mug");
 
     const card = screen.getByText("Moomin Mug").closest("a");
-    const button = card.querySelector("button");
-    expect(button).toHaveTextContent("Out of stock");
+    const button = within(card).getByRole("button", { name: "Out of stock" });
     expect(button).toBeDisabled();
   });
 
@@ -114,7 +126,7 @@ describe("Home", () => {
     await screen.findByText("Kånken Mini");
 
     const card = screen.getByText("Kånken Mini").closest("a");
-    await userEvent.click(card.querySelector("button"));
+    await userEvent.click(within(card).getByRole("button", { name: "Add to cart" }));
 
     // Still on the product listing, not navigated to /product/1 - the
     // add-to-cart click calls preventDefault() specifically to stop the

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
+import WishlistButton from "../components/WishlistButton";
 import usePageMeta from "../hooks/usePageMeta";
 
 const LOW_STOCK_HINT_THRESHOLD = 5;
@@ -150,7 +151,10 @@ export default function Home() {
       <div className="product-grid">
         {visible.map((p) => (
           <Link key={p.id} to={`/product/${p.id}`} className="product-card">
-            <ProductThumb product={p} />
+            <div className="product-thumb-wrap">
+              <ProductThumb product={p} />
+              <WishlistButton product={p} />
+            </div>
             <div className="product-card-body">
               <span className="product-origin">{p.origin_country} · {p.category}</span>
               <h3 className="product-name">{p.name}</h3>

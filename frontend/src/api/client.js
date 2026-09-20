@@ -82,6 +82,22 @@ export async function fetchMyOrders() {
   return res.json();
 }
 
+export async function fetchWishlist() {
+  const res = await fetch("/api/wishlist");
+  if (!res.ok) throw new Error("Failed to load your wishlist");
+  return res.json();
+}
+
+export async function addToWishlist(productId) {
+  const res = await fetch(`/api/wishlist/${productId}`, { method: "POST" });
+  if (!res.ok) throw new Error((await res.json()).error || "Failed to save item");
+}
+
+export async function removeFromWishlist(productId) {
+  const res = await fetch(`/api/wishlist/${productId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to remove item");
+}
+
 export async function adminFetchOrders(token) {
   const res = await fetch("/api/admin/orders", { headers: { "x-admin-token": token } });
   if (!res.ok) throw new Error(res.status === 401 ? "Invalid admin token" : "Failed to load orders");

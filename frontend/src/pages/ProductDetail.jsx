@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { fetchProduct, fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
+import WishlistButton from "../components/WishlistButton";
 import usePageMeta from "../hooks/usePageMeta";
 
 const LOW_STOCK_HINT_THRESHOLD = 5;
@@ -47,7 +48,10 @@ export default function ProductDetail() {
         <span className="breadcrumb-current">{product.name}</span>
       </p>
       <div className="product-detail">
-        <ProductThumb product={product} style={{ minHeight: 320 }} />
+        <div className="product-thumb-wrap">
+          <ProductThumb product={product} style={{ minHeight: 320 }} />
+          <WishlistButton product={product} />
+        </div>
         <div>
           <span className="product-origin">{product.origin_country} · {product.category}</span>
           <h1 className="product-detail-name">{product.name}</h1>
@@ -87,16 +91,19 @@ export default function ProductDetail() {
             </div>
           )}
 
-          <button
-            className="btn"
-            disabled={product.stock_quantity === 0}
-            onClick={() => {
-              addItem(product, quantity);
-              setAdded(true);
-            }}
-          >
-            {product.stock_quantity === 0 ? "Out of stock" : added ? "Added ✓" : "Add to cart"}
-          </button>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              className="btn"
+              disabled={product.stock_quantity === 0}
+              onClick={() => {
+                addItem(product, quantity);
+                setAdded(true);
+              }}
+            >
+              {product.stock_quantity === 0 ? "Out of stock" : added ? "Added ✓" : "Add to cart"}
+            </button>
+            <WishlistButton product={product} showLabel />
+          </div>
           {added && (
             <p className="muted" style={{ marginTop: "0.75rem" }}>
               <Link to="/cart">View cart →</Link>
@@ -135,7 +142,10 @@ export default function ProductDetail() {
           <div className="product-grid">
             {related.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} className="product-card">
-                <ProductThumb product={p} />
+                <div className="product-thumb-wrap">
+                  <ProductThumb product={p} />
+                  <WishlistButton product={p} />
+                </div>
                 <div className="product-card-body">
                   <span className="product-origin">{p.origin_country} · {p.category}</span>
                   <h3 className="product-name">{p.name}</h3>
