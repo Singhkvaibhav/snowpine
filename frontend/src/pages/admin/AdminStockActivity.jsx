@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminFetchStockMovements } from "../../api/client";
+import AdminNav from "./AdminNav";
 
 const TOKEN_KEY = "snowpine_admin_token";
 const REASON_LABEL = {
   order_placed: "Order placed",
   order_released: "Order released (expired/failed)",
   admin_adjustment: "Manual adjustment",
+  return_restocked: "Returned & restocked",
 };
 
 export default function AdminStockActivity() {
@@ -32,18 +34,15 @@ export default function AdminStockActivity() {
   return (
     <div>
       <h2>Stock activity</h2>
-      <p className="muted">
-        <Link to="/admin">Orders</Link> · <Link to="/admin/products">Products</Link> ·{" "}
-        <Link to="/admin/sales">Sales overview</Link> ·{" "}
-        <Link to="/admin/discount-codes">Discount codes</Link>
-      </p>
+      <AdminNav />
       {error && <p className="error-text">{error}</p>}
       {!movements ? (
         <p className="muted">Loading...</p>
       ) : movements.length === 0 ? (
         <p className="muted">No stock movements yet.</p>
       ) : (
-        <div className="table-scroll">
+        <div className="admin-card">
+          <div className="admin-table-wrap">
           <table>
             <thead>
               <tr>
@@ -66,6 +65,7 @@ export default function AdminStockActivity() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

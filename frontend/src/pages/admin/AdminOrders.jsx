@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   adminFetchOrders,
   adminUpdateOrderStatus,
@@ -7,6 +6,7 @@ import {
   adminMarkReturned,
   adminRefundOrder,
 } from "../../api/client";
+import AdminNav from "./AdminNav";
 
 const STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const TOKEN_KEY = "snowpine_admin_token";
@@ -39,7 +39,7 @@ export default function AdminOrders() {
       <div>
         <h2>Admin</h2>
         <form
-          className="form-grid"
+          className="form-grid admin-form-card"
           onSubmit={(e) => {
             e.preventDefault();
             sessionStorage.setItem(TOKEN_KEY, tokenInput);
@@ -60,18 +60,15 @@ export default function AdminOrders() {
   return (
     <div>
       <h2>Orders</h2>
-      <p className="muted">
-        <Link to="/admin/products">Products</Link> · <Link to="/admin/sales">Sales overview</Link> ·{" "}
-        <Link to="/admin/stock-activity">Stock activity</Link> ·{" "}
-        <Link to="/admin/discount-codes">Discount codes</Link>
-      </p>
+      <AdminNav />
       {error && <p className="error-text">{error}</p>}
       {!orders ? (
         <p className="muted">Loading...</p>
       ) : orders.length === 0 ? (
         <p className="muted">No orders yet.</p>
       ) : (
-        <div className="table-scroll">
+        <div className="admin-card">
+          <div className="admin-table-wrap">
           <table>
             <thead>
               <tr>
@@ -121,6 +118,7 @@ export default function AdminOrders() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -852,6 +852,107 @@ td { padding: 0.75rem 0.4rem; border-bottom: 1px solid var(--line); text-align: 
   padding: 1.1rem 0;
 }
 
+/* Admin */
+.admin-nav {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.75rem;
+  padding-bottom: 0;
+  overflow-x: auto;
+}
+
+.admin-nav-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0 0 0.75rem;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-nav-link:hover { color: var(--ink); }
+
+.admin-nav-link.active {
+  color: var(--accent-dark);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.admin-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.admin-table-wrap { overflow-x: auto; }
+
+.admin-card table { min-width: 480px; }
+
+.admin-card thead th {
+  position: sticky;
+  top: 0;
+  background: var(--snow);
+  z-index: 1;
+}
+
+.admin-card tbody tr:nth-child(even) { background: rgba(31, 92, 120, 0.025); }
+.admin-card tbody tr:hover { background: var(--ice); }
+.admin-card th, .admin-card td { padding: 0.7rem 1rem; }
+.admin-card table { width: 100%; }
+
+.admin-form-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-width: 640px;
+}
+
+.stat-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.stat-card-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-card-value {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 600;
+  margin-top: 0.3rem;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.status-pill.active { background: #e5f3ea; color: #2f7a4f; }
+.status-pill.inactive { background: #f0f0f0; color: var(--muted); }
+.status-pill.warning { background: #fff4e5; color: #8a5a00; }
+
 .legal-page { max-width: 720px; line-height: 1.6; }
 .legal-page h1 { margin-bottom: 0.25rem; }
 .legal-page .review-flag {

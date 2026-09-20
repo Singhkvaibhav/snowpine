@@ -240,6 +240,34 @@ with a ran-once ref; startup-hang bugs like this are exactly why this
 project runs tests with everything actually verified, not left running
 in the background unread.
 
+**Admin panel polish** - a follow-up pass on the same "still looks very
+basic" feedback, scoped down for what's actually a single-operator
+internal tool rather than given the storefront's full treatment:
+- **`AdminNav.jsx`** - one shared sub-navigation component (styled as
+  underlined tabs, active route highlighted) replacing five hand-copied
+  plain-text link lines, one per admin page, that had no mechanism
+  keeping them in sync - each had stayed correct so far purely by care
+  taken while adding new admin pages, not by anything structural
+  preventing drift.
+- **Tables wrapped in a real card** (`.admin-card`) with a sticky header
+  row, zebra striping, and row hover - the Products table (39 rows, all
+  inline-editable) was the worst offender, a dense wall of table rows
+  directly on the page background with nothing to anchor it visually.
+- **Sales overview's numbers turned into actual stat cards** instead of
+  a plain label-over-heading pair floating on the page.
+- **Discount codes' status column turned into color-coded pills**
+  (green/active, grey/deactivated, amber/expired-or-used-up) instead of
+  plain text - scannable at a glance across many codes.
+- **Two real display bugs fixed, both from the returns/refunds feature
+  not being propagated everywhere a status/reason is shown**:
+  `AdminStockActivity`'s reason column had no label for
+  `return_restocked`, so it fell back to printing the raw enum value
+  instead of "Returned & restocked" like every other reason already did;
+  `AdminSalesOverview`'s "Orders by status" table iterated a hardcoded
+  five-status list that predated `return_requested`/`returned`/
+  `refunded`, so any order in one of those states was silently missing
+  from the breakdown entirely rather than showing as zero or counted.
+
 **Inventory management** - `stock_movements` audit log plus a per-product
 `reorder_point`. Every real stock change (an order placed, an expired
 reservation released back, an admin's manual correction) is logged with

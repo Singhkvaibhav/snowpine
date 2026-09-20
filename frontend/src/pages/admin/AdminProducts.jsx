@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { adminFetchProducts, adminUpdateProduct, adminCreateProduct } from "../../api/client";
+import AdminNav from "./AdminNav";
 
 const TOKEN_KEY = "snowpine_admin_token";
 const NEW_PRODUCT_DEFAULTS = {
@@ -95,7 +95,7 @@ export default function AdminProducts() {
       <div>
         <h2>Admin</h2>
         <form
-          className="form-grid"
+          className="form-grid admin-form-card"
           onSubmit={(e) => {
             e.preventDefault();
             sessionStorage.setItem(TOKEN_KEY, tokenInput);
@@ -148,11 +148,7 @@ export default function AdminProducts() {
   return (
     <div>
       <h2>Products</h2>
-      <p className="muted">
-        <Link to="/admin">Orders</Link> · <Link to="/admin/sales">Sales overview</Link> ·{" "}
-        <Link to="/admin/stock-activity">Stock activity</Link> ·{" "}
-        <Link to="/admin/discount-codes">Discount codes</Link>
-      </p>
+      <AdminNav />
       {lowStockCount > 0 && (
         <p className="error-text">
           {lowStockCount} product{lowStockCount === 1 ? "" : "s"} at or below its reorder point - highlighted below.
@@ -163,29 +159,31 @@ export default function AdminProducts() {
       {!products ? (
         <p className="muted">Loading...</p>
       ) : (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price (₹)</th>
-                <th>Stock</th>
-                <th>Reorder at</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => (
-                <EditableRow key={p.id} product={p} onSave={handleSave} />
-              ))}
-            </tbody>
-          </table>
+        <div className="admin-card">
+          <div className="admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Price (₹)</th>
+                  <th>Stock</th>
+                  <th>Reorder at</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <EditableRow key={p.id} product={p} onSave={handleSave} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       <h3 style={{ marginTop: "2rem" }}>Add a product</h3>
-      <form onSubmit={handleCreate} className="form-grid">
+      <form onSubmit={handleCreate} className="form-grid admin-form-card">
         <label>
           Name
           <input required value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />

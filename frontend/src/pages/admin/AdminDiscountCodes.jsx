@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { adminFetchDiscountCodes, adminCreateDiscountCode, adminUpdateDiscountCode } from "../../api/client";
+import AdminNav from "./AdminNav";
 
 const TOKEN_KEY = "snowpine_admin_token";
 const NEW_CODE_DEFAULTS = { code: "", type: "percent", value: "10", max_uses: "", min_order_inr: "", expires_at: "" };
@@ -43,7 +43,7 @@ export default function AdminDiscountCodes() {
       <div>
         <h2>Admin</h2>
         <form
-          className="form-grid"
+          className="form-grid admin-form-card"
           onSubmit={(e) => {
             e.preventDefault();
             sessionStorage.setItem(TOKEN_KEY, tokenInput);
@@ -95,10 +95,7 @@ export default function AdminDiscountCodes() {
   return (
     <div>
       <h2>Discount codes</h2>
-      <p className="muted">
-        <Link to="/admin">Orders</Link> · <Link to="/admin/products">Products</Link> ·{" "}
-        <Link to="/admin/sales">Sales overview</Link> · <Link to="/admin/stock-activity">Stock activity</Link>
-      </p>
+      <AdminNav />
       {error && <p className="error-text">{error}</p>}
 
       {!codes ? (
@@ -106,48 +103,52 @@ export default function AdminDiscountCodes() {
       ) : codes.length === 0 ? (
         <p className="muted">No discount codes yet.</p>
       ) : (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Value</th>
-                <th>Min order</th>
-                <th>Uses</th>
-                <th>Expires</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {codes.map((c) => {
-                const expired = isExpired(c);
-                const usedUp = c.max_uses != null && c.uses_count >= c.max_uses;
-                return (
-                  <tr key={c.id}>
-                    <td>{c.code}</td>
-                    <td>{formatValue(c)}</td>
-                    <td>{c.min_order_inr ? `₹${Number(c.min_order_inr).toLocaleString("en-IN")}` : "-"}</td>
-                    <td>{c.uses_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}</td>
-                    <td>{c.expires_at ? new Date(c.expires_at).toLocaleDateString("en-IN") : "-"}</td>
-                    <td>
-                      {!c.active ? "Deactivated" : expired ? "Expired" : usedUp ? "Used up" : "Active"}
-                    </td>
-                    <td>
-                      <button className="btn btn-secondary" onClick={() => toggleActive(c)}>
-                        {c.active ? "Deactivate" : "Reactivate"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="admin-card">
+          <div className="admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Value</th>
+                  <th>Min order</th>
+                  <th>Uses</th>
+                  <th>Expires</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {codes.map((c) => {
+                  const expired = isExpired(c);
+                  const usedUp = c.max_uses != null && c.uses_count >= c.max_uses;
+                  const statusText = !c.active ? "Deactivated" : expired ? "Expired" : usedUp ? "Used up" : "Active";
+                  const statusClass = !c.active ? "inactive" : expired || usedUp ? "warning" : "active";
+                  return (
+                    <tr key={c.id}>
+                      <td>{c.code}</td>
+                      <td>{formatValue(c)}</td>
+                      <td>{c.min_order_inr ? `₹${Number(c.min_order_inr).toLocaleString("en-IN")}` : "-"}</td>
+                      <td>{c.uses_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}</td>
+                      <td>{c.expires_at ? new Date(c.expires_at).toLocaleDateString("en-IN") : "-"}</td>
+                      <td>
+                        <span className={`status-pill ${statusClass}`}>{statusText}</span>
+                      </td>
+                      <td>
+                        <button className="btn btn-secondary" onClick={() => toggleActive(c)}>
+                          {c.active ? "Deactivate" : "Reactivate"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       <h3 style={{ marginTop: "2rem" }}>Create a discount code</h3>
-      <form onSubmit={handleCreate} className="form-grid">
+      <form onSubmit={handleCreate} className="form-grid admin-form-card">
         <label>
           Code
           <input
