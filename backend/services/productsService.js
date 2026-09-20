@@ -22,13 +22,34 @@ const EDITABLE_FIELDS = [
   "reorder_point",
 ];
 
+// Rating aggregates joined in here (not fetched separately per product)
+// so the product listing/detail endpoints carry avg_rating/review_count
+// "for free" in the same query the storefront already calls - a rating
+// badge on every card in a 39-product grid would otherwise mean 39 extra
+// round trips.
+const RATING_JOIN = `
+  LEFT JOIN (
+    SELECT product_id, AVG(rating)::numeric(3,2) AS avg_rating, COUNT(*) AS review_count
+    FROM reviews GROUP BY product_id
+  ) r ON r.product_id = p.id
+`;
+
 async function listProducts() {
-  const { rows } = await query("SELECT * FROM products ORDER BY created_at DESC");
+  const { rows } = await query(
+    `SELECT p.*, COALESCE(r.avg_rating, 0) AS avg_rating, COALESCE(r.review_count, 0) AS review_count
+     FROM products p ${RATING_JOIN}
+     ORDER BY p.created_at DESC`
+  );
   return rows;
 }
 
 async function getProduct(id) {
-  const { rows } = await query("SELECT * FROM products WHERE id = $1", [id]);
+  const { rows } = await query(
+    `SELECT p.*, COALESCE(r.avg_rating, 0) AS avg_rating, COALESCE(r.review_count, 0) AS review_count
+     FROM products p ${RATING_JOIN}
+     WHERE p.id = $1`,
+    [id]
+  );
   return rows[0] || null;
 }
 

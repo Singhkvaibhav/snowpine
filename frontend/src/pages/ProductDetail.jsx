@@ -4,6 +4,8 @@ import { fetchProduct, fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
 import WishlistButton from "../components/WishlistButton";
+import StarRating from "../components/StarRating";
+import ReviewsSection from "../components/ReviewsSection";
 import usePageMeta from "../hooks/usePageMeta";
 
 const LOW_STOCK_HINT_THRESHOLD = 5;
@@ -55,6 +57,9 @@ export default function ProductDetail() {
         <div>
           <span className="product-origin">{product.origin_country} · {product.category}</span>
           <h1 className="product-detail-name">{product.name}</h1>
+          {Number(product.review_count) > 0 && (
+            <StarRating value={product.avg_rating} count={Number(product.review_count)} />
+          )}
           <p className="product-detail-description">{product.description}</p>
           <p className="product-detail-price">
             ₹{Number(product.price_inr).toLocaleString("en-IN")}
@@ -135,6 +140,8 @@ export default function ProductDetail() {
           </ul>
         </div>
       </div>
+
+      <ReviewsSection productId={product.id} avgRating={product.avg_rating} reviewCount={Number(product.review_count)} />
 
       {related.length > 0 && (
         <section className="related-products">

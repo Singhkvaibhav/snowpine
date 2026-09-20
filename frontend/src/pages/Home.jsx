@@ -4,6 +4,7 @@ import { fetchProducts } from "../api/client";
 import { useCart } from "../cart/CartContext";
 import ProductThumb from "../components/ProductThumb";
 import WishlistButton from "../components/WishlistButton";
+import StarRating from "../components/StarRating";
 import usePageMeta from "../hooks/usePageMeta";
 
 const LOW_STOCK_HINT_THRESHOLD = 5;
@@ -158,6 +159,11 @@ export default function Home() {
             <div className="product-card-body">
               <span className="product-origin">{p.origin_country} · {p.category}</span>
               <h3 className="product-name">{p.name}</h3>
+              {Number(p.review_count) > 0 && (
+                <div className="product-card-rating">
+                  <StarRating value={p.avg_rating} count={Number(p.review_count)} />
+                </div>
+              )}
               <span className="product-price">₹{Number(p.price_inr).toLocaleString("en-IN")}</span>
               {p.stock_quantity === 0 ? (
                 <span className="stock-badge">Out of stock</span>

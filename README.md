@@ -47,7 +47,7 @@ has a GitHub remote and gets pushed - not active yet on a local-only repo.
 
 **Backend** - Jest + Supertest, against a **real** `snowpine_test` Postgres
 database, not mocks - the concurrency test below is exactly the kind of
-bug a mock would hide. 139 tests covering: order creation/validation, GST
+bug a mock would hide. 152 tests covering: order creation/validation, GST
 tax-breakdown math, the order-access-token authorization fix, Razorpay
 payment verification + webhook confirmation, the reservation-expiry
 sweep, admin auth/product management, rate limiting, customer accounts
@@ -69,16 +69,20 @@ failed order never consuming a use, and the GST breakdown reflecting the
 discount pro-rata rather than the pre-discount price), abandoned-cart
 reminders (fires once inside the delay-to-expiry window, never before the
 delay or after expiry, never for an order with nothing to click through
-to, never twice, and never for a paid order), and the wishlist (requires
+to, never twice, and never for a paid order), the wishlist (requires
 login, idempotent add/remove, 404 on a nonexistent product, and one
-customer's saved items never leak into another's).
+customer's saved items never leak into another's), and reviews (only a
+customer with an order that reached "delivered" can review a product,
+submitting again updates the existing review rather than duplicating it,
+rating/body validation, and the rating aggregate on `GET /api/products`
+reflecting a submitted review).
 Runs with `--runInBand --forceExit` - serial because test files share one
 real database; `--forceExit` only after directly ruling out a real leak
 (see `tests/teardown.js` for the investigation - it's a Jest-runner
 artifact from many isolated per-file module registries, not something
 the running server actually does).
 
-**Frontend** - Vitest + React Testing Library, 79 tests covering
+**Frontend** - Vitest + React Testing Library, 88 tests covering
 `CartContext` (the source of truth for what a customer is about to buy),
 `Home`'s search/category filtering, `ProductThumb`'s category-icon logic,
 `ProductDetail`'s quantity stepper/related-products/add-to-cart-with-
@@ -87,11 +91,14 @@ per-route title/description, `AuthContext`/`MyOrders` (login state,
 redirect-when-logged-out), `OrderConfirmation`'s GST display, discount
 breakdown, and payment-retry flow (verified the retry reopens Razorpay on
 the *same* `razorpay_order_id`, not a new one - the exact behavior the
-double-reservation fix depends on), and the wishlist (`WishlistContext`'s
+double-reservation fix depends on), the wishlist (`WishlistContext`'s
 optimistic toggle reverting on a failed request, `WishlistButton`
 redirecting a logged-out click to `/login` instead of toggling and never
 triggering the surrounding product-card `<Link>`'s navigation, and
-`MyWishlist`'s empty/populated/out-of-stock states).
+`MyWishlist`'s empty/populated/out-of-stock states), and `ReviewsSection`
+(logged-out/ineligible/eligible states each rendering the right UI, the
+submit button disabled until a star is picked, and editing/deleting an
+existing review).
 
 A few worth calling out because they test actual bugs this project hit,
 not hypotheticals:
@@ -338,6 +345,31 @@ neither case should surface as an error. Verified end-to-end against the
 running dev API and visually via Playwright: logged-out click redirects
 to login, a fresh signup + save renders the filled heart and lists the
 product on `/account/wishlist` with a working "Add to cart".
+
+**Product reviews & ratings** - the single biggest trust signal available
+given there's no real product photography yet (`ReviewsSection.jsx`,
+below the trust-list on the product detail page). Gated on a verified
+purchase, not just a login: `reviewsService.canReview` requires an order
+for that product currently in `delivered`/`return_requested`/`returned`/
+`refunded` - any of which necessarily passed through `delivered` first
+per the order state machine, so checking the current status alone is
+enough without keeping a separate status history. One review per
+customer per product (`UNIQUE (customer_id, product_id)`); submitting
+again is an upsert (`ON CONFLICT ... DO UPDATE`), not a duplicate or a
+rejection, since a customer changing their mind later is normal, not an
+error case. A reviewer's full signup name is truncated to first name +
+last initial ("Priya Sharma" → "Priya S.") before ever being shown
+publicly - a full legal name is more exposure than a public review
+needs. `productsService.listProducts`/`getProduct` join in the rating
+average/count directly (`LEFT JOIN` a `GROUP BY` subquery) so a rating
+badge on every card in the 39-product grid comes for free in the
+storefront's existing product-list call, rather than one extra round
+trip per card. Caught a real rendering bug while verifying this live:
+the star icons defaulted to solid black instead of grey/gold, because
+neither `StarRating` nor `RatingInput` had ever set `fill="currentColor"`
+on the `<svg>` - the CSS `color` rules were correct and simply had
+nothing to apply to. No moderation/flagging admin UI yet - the
+verified-purchase requirement is the primary spam defense for now.
 
 **Discount codes** (`/admin/discount-codes`) - percent-off or flat-₹-off
 codes with an optional minimum order value, expiry date, and `max_uses`

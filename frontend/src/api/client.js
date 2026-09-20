@@ -10,6 +10,34 @@ export async function fetchProduct(id) {
   return res.json();
 }
 
+export async function fetchProductReviews(productId) {
+  const res = await fetch(`/api/reviews/product/${productId}`);
+  if (!res.ok) throw new Error("Failed to load reviews");
+  return res.json();
+}
+
+export async function fetchMyReview(productId) {
+  const res = await fetch(`/api/reviews/product/${productId}/me`);
+  if (!res.ok) throw new Error("Failed to load your review status");
+  return res.json();
+}
+
+export async function submitReview(productId, fields) {
+  const res = await fetch(`/api/reviews/product/${productId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to submit review");
+  return data;
+}
+
+export async function deleteReview(productId) {
+  const res = await fetch(`/api/reviews/product/${productId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete review");
+}
+
 export async function placeOrder(order) {
   const res = await fetch("/api/orders", {
     method: "POST",
